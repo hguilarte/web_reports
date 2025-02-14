@@ -1,0 +1,18 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Página Principal</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container text-center mt-5">
+        <!-- Referencia a la imagen estática -->
+        <img src="{% static 'webapp/images/home_image.jpg' %}" alt="Imagen Principal" class="img-fluid">
+        <h1 class="my-4">Bienvenido a Mi Reporte</h1>
+        <a href="{% url 'show_query_result' %}" class="btn btn-primary btn-lg">Ver Reporte</a>
+    </div>
+</body>
+</html>
