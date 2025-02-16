@@ -63,6 +63,7 @@ def export_pdf(request):
     return response
 
 ############################################
+"""
 from django.db.models import Sum
 from django.shortcuts import render
 from .models import CapHistoricReport
@@ -103,7 +104,7 @@ def cap_pivot_view(request):
     print("PIVOT TABLE DATA:", context)
 
     return render(request, 'webapp/cap_pivot.html', context)
-
+"""
 ############################################
 from webapp.models import CapHistoricReport
 
@@ -112,3 +113,46 @@ def cap_detail_view(request, plan, capmo):
 
     return render(request, 'webapp/cap_detail.html', {'data': data, 'plan': plan, 'capmo': capmo})
 
+############################################
+
+from django.views.generic import TemplateView
+from django.db.models import Sum
+from .models import CapHistoricReport
+
+class CapPivotView(TemplateView):
+    template_name = "webapp/cap_pivot.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        pivot_data = (
+            CapHistoricReport.objects.values('plan', 'capmo')
+            .annotate(total_mbshp=Sum('mbshp'))
+            .order_by('plan', 'capmo')
+        )
+
+        pivot_dict = {}
+        capmo_labels = set()
+
+        for row in pivot_data:
+            plan = row['plan']
+            capmo = row['capmo']
+            total_mbshp = row['total_mbshp']
+
+            if plan not in pivot_dict:
+                pivot_dict[plan] = {}
+
+            pivot_dict[plan][capmo] = total_mbshp
+            capmo_labels.add(capmo)
+
+        pivot_list = [
+            {"plan": plan, **{capmo: pivot_dict[plan].get(capmo, 0) for capmo in capmo_labels}}
+            for plan in pivot_dict
+        ]
+
+        context.update({
+            'pivot_list': pivot_list,
+            'capmo_labels': sorted(capmo_labels),
+        })
+
+        return context
