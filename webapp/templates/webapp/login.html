@@ -3,24 +3,83 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <title>Inicia sesión</title>
+    <title>Login - Health Care Data Reporting</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+        .login-container {
+            width: 50%;
+            max-width: 800px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+        }
+        .left-box {
+            background-color: #007bff;
+            color: white;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+        }
+        .left-box img {
+            width: 100px;
+            height: auto;
+            margin-bottom: 10px;
+        }
+        .right-box {
+            padding: 30px;
+        }
+        .copyright {
+            text-align: center;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
 </head>
 <body>
-    <div class="container mt-5">
-        <h2 class="mb-4">Inicia sesión</h2>
+
+<div class="login-container d-flex">
+    <!-- Cuadro Izquierdo -->
+    <div class="left-box w-50 d-flex flex-column justify-content-center align-items-center">
+        <img src="{% static 'images/healthcare_logo.png' %}" alt="Health Care Logo">
+        <h3>Health Care Data Reporting</h3>
+    </div>
+
+    <!-- Cuadro Derecho (Login) -->
+    <div class="right-box w-50">
+        <h2 class="text-center">Iniciar Sesión</h2>
         <form method="post">
             {% csrf_token %}
             <div class="mb-3">
                 <label for="id_username" class="form-label">Usuario</label>
-                <input type="text" name="username" class="form-control" id="id_username">
+                <input type="text" name="username" id="id_username" class="form-control" required>
             </div>
             <div class="mb-3">
                 <label for="id_password" class="form-label">Contraseña</label>
-                <input type="password" name="password" class="form-control" id="id_password">
+                <input type="password" name="password" id="id_password" class="form-control" required>
             </div>
-            <button type="submit" class="btn btn-primary">Ingresar</button>
+            <button type="submit" class="btn btn-primary w-100">Ingresar</button>
         </form>
     </div>
+</div>
+
+<!-- Copyright -->
+<div class="copyright">
+    ©Copyright 2025 - hgn DB Reports - All Rights Reserved
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

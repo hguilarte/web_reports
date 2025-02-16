@@ -61,3 +61,54 @@ def export_pdf(request):
     if pisa_status.err:
         return HttpResponse('Error al generar el PDF')
     return response
+
+############################################
+from django.db.models import Sum
+from django.shortcuts import render
+from .models import CapHistoricReport
+def cap_pivot_view(request):
+    pivot_data = (
+        CapHistoricReport.objects.values('plan', 'capmo')
+        .annotate(total_mbshp=Sum('mbshp'))
+        .order_by('plan', 'capmo')
+    )
+
+    pivot_dict = {}
+    capmo_labels = set()
+
+    for row in pivot_data:
+        plan = row['plan']
+        capmo = row['capmo']
+        total_mbshp = row['total_mbshp']
+
+        if plan not in pivot_dict:
+            pivot_dict[plan] = {}
+
+        pivot_dict[plan][capmo] = total_mbshp
+        capmo_labels.add(capmo)
+
+    pivot_list = []
+    for plan, capmo_data in pivot_dict.items():
+        row_data = {"plan": plan}
+        for capmo in capmo_labels:
+            row_data[capmo] = capmo_data.get(capmo, 0)
+        pivot_list.append(row_data)
+
+    context = {
+        'pivot_list': pivot_list,
+        'capmo_labels': sorted(capmo_labels),
+    }
+
+    # 🛑 Verifica qué datos se están enviando al template
+    print("PIVOT TABLE DATA:", context)
+
+    return render(request, 'webapp/cap_pivot.html', context)
+
+############################################
+from webapp.models import CapHistoricReport
+
+def cap_detail_view(request, plan, capmo):
+    data = CapHistoricReport.objects.filter(plan=plan, capmo=capmo)
+
+    return render(request, 'webapp/cap_detail.html', {'data': data, 'plan': plan, 'capmo': capmo})
+

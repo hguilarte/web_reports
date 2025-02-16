@@ -1,0 +1,32 @@
+{% extends "webapp/base_report.html" %}
+
+{% block title %}Detalle del Reporte{% endblock %}
+
+{% block report_title %}Detalle del Reporte para {{ plan }} - {{ capmo }}{% endblock %}
+
+{% block report_content %}
+    {% if data %}
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Plan</th>
+                    <th>Capmo</th>
+                    <th>Membresía</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data %}
+                    <tr>
+                        <td>{{ row.plan }}</td>
+                        <td>{{ row.capmo }}</td>
+                        <td>{{ row.mbshp }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-info" role="alert">
+            No hay datos disponibles para este reporte.
+        </div>
+    {% endif %}
+{% endblock %}

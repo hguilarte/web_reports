@@ -1,0 +1,39 @@
+{% extends "webapp/base_report.html" %}
+{% load custom_filters %}  <!-- Cargar el filtro personalizado -->
+
+{% block title %}Reporte Pivot{% endblock %}
+
+{% block report_title %}Reporte Pivot - Membresía{% endblock %}
+
+{% block report_content %}
+    {% if pivot_list %}
+        <table class="table table-striped table-bordered">
+            <thead class="table-dark">
+                <tr>
+                    <th>Plan</th>
+                    {% for capmo in capmo_labels %}
+                        <th>{{ capmo }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in pivot_list %}
+                    <tr>
+                        <td>{{ row.plan }}</td>
+                        {% for capmo in capmo_labels %}
+                            <td>
+                                <a href="{% url 'cap_detail' row.plan capmo %}">
+                                    {{ row|dict_get:capmo }}
+                                </a>
+                            </td>
+                        {% endfor %}
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <div class="alert alert-info" role="alert">
+            No hay datos para mostrar.
+        </div>
+    {% endif %}
+{% endblock %}
