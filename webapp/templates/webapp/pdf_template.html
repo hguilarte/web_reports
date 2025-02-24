@@ -1,16 +1,33 @@
 <!DOCTYPE html>
-<html lang="es">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
+
+    <!-- 🔹 Basic Table Styling for PDF -->
     <style>
-        table { width: 100%; border-collapse: collapse; }
-        th, td { border: 1px solid #333; padding: 8px; text-align: center; }
-        th { background-color: #4CAF50; color: white; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #333;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #4CAF50;
+            color: white;
+        }
     </style>
-    <title>Exportar a PDF</title>
+
+    <title>Export to PDF</title>
 </head>
 <body>
-    <h1>Resultados del Query</h1>
+
+    <!-- 🔹 Report Title -->
+    <h1>Query Results</h1>
+
+    <!-- 🔹 Table with Query Data -->
     <table>
         <tr>
             <th>CENTER</th>
@@ -25,5 +42,6 @@
         </tr>
         {% endfor %}
     </table>
+
 </body>
 </html>

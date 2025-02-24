@@ -4,8 +4,13 @@
 <head>
     <meta charset="UTF-8">
     <title>Login - Health Care Data Reporting</title>
+
+    <!-- 🔹 Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- 🔹 Custom Styles -->
     <style>
+        /* 🔹 Full Page Background */
         body {
             background-color: #f8f9fa;
             display: flex;
@@ -15,35 +20,67 @@
             height: 100vh;
             margin: 0;
         }
+
+        /* 🔹 Login Container */
         .login-container {
             display: flex;
             width: 50%;
             max-width: 800px;
             background: white;
-            padding: 20px;
             border-radius: 10px;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            overflow: hidden;
         }
+
+        /* 🔹 Left Section (Image) */
         .left-box {
-            background-color: #007bff;
-            color: white;
-            padding: 20px;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            text-align: center;
             width: 50%;
+            position: relative;
+            overflow: hidden;
         }
+
         .left-box img {
-            width: 100px;
-            height: auto;
-            margin-bottom: 10px;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            position: absolute;
         }
+
+        /* 🔹 Text Overlay on Image */
+        .overlay-text {
+            position: absolute;
+            bottom: 0;
+            width: 100%;
+            text-align: center;
+            background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 10%, rgba(0, 0, 0, 0.6) 90%);
+            color: white;
+            padding: 15px 0;
+            font-size: 22px;
+            font-weight: bold;
+        }
+
+        /* 🔹 Right Section (Login Form) */
         .right-box {
             width: 50%;
             padding: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
+
+        /* 🔹 Custom Login Button */
+        .login-btn {
+            background-color: #61a5c2 !important; /* Light Blue */
+            border-color: #61a5c2 !important;
+            color: white;
+        }
+
+        .login-btn:hover {
+            background-color: #5093af !important; /* Darker Blue on Hover */
+            border-color: #5093af !important;
+        }
+
+        /* 🔹 Copyright Footer */
         .copyright {
             position: absolute;
             bottom: 10px;
@@ -56,36 +93,45 @@
 </head>
 <body>
 
+<!-- 🔹 Login Container -->
 <div class="login-container">
-    <!-- Left Box -->
+    <!-- Left Box with Full Image Background -->
     <div class="left-box">
-        <img src="{% static 'images/healthcare_logo.png' %}" alt="Health Care Logo">
-        <h3>Health Care Data Reporting</h3>
+        <img src="{% static 'images/new_healthcare_report.png' %}" alt="Healthcare Reports">
+        <div class="overlay-text">Health Care Data Reporting</div>
     </div>
 
-    <!-- Right Box (Login) -->
+    <!-- 🔹 Right Box (Login Form) -->
     <div class="right-box">
         <h2 class="text-center">Sign In</h2>
         <form method="post">
             {% csrf_token %}
+
+            <!-- 🔹 Username Input -->
             <div class="mb-3">
                 <label for="id_username" class="form-label">Username</label>
                 <input type="text" name="username" id="id_username" class="form-control" required>
             </div>
+
+            <!-- 🔹 Password Input -->
             <div class="mb-3">
                 <label for="id_password" class="form-label">Password</label>
                 <input type="password" name="password" id="id_password" class="form-control" required>
             </div>
-            <button type="submit" class="btn btn-primary w-100">Log In</button>
+
+            <!-- 🔹 Login Button -->
+            <button type="submit" class="btn login-btn w-100">Log In</button>
         </form>
     </div>
 </div>
 
-<!-- Copyright Section -->
+<!-- 🔹 Copyright Section -->
 <div class="copyright">
     ©Copyright 2025 - HGN DB Reports - All Rights Reserved
 </div>
 
+<!-- 🔹 Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
 </body>
 </html>

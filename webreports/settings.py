@@ -1,23 +1,24 @@
 from pathlib import Path
+import os
+from dotenv import load_dotenv  # Load environment variables securely
 
-# Build paths inside the project like this: BASE_DIR / 'subdir'.
+# Load environment variables from .env file
+load_dotenv()
+
+# ✅ Base directory of the project
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# ✅ SECURITY WARNING: Keep the secret key used in production secret!
+SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-default-secret-key')
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
+# ✅ SECURITY WARNING: Don't run with debug turned on in production!
+DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
 
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-$4d3ugku@d4+0*0fk+=6$(!&)o)klcuzoisi^-cxu2%81q7s@0'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
-
-ALLOWED_HOSTS = []
+# ✅ Hosts allowed to access the project
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
 
 
-# Application definition
-
+# ✅ Installed applications
 INSTALLED_APPS = [
     'django.contrib.admin',
     'django.contrib.auth',
@@ -25,9 +26,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'webapp'
+    'webapp',
 ]
 
+# ✅ Middleware
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
@@ -38,10 +40,10 @@ MIDDLEWARE = [
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
+# ✅ Root URL configuration
 ROOT_URLCONF = 'webreports.urls'
 
-import os
-
+# ✅ Templates configuration
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
@@ -58,77 +60,47 @@ TEMPLATES = [
     },
 ]
 
+# ✅ WSGI application
 WSGI_APPLICATION = 'webreports.wsgi.application'
 
 
-# Database
-# https://docs.djangoproject.com/en/5.0/ref/settings/#databases
-
+# ✅ Database Configuration (Using environment variables for security)
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'webreports',
-        'USER': 'hguilarte',
-        'PASSWORD': 'hgnFox#1db',
-        'HOST': '31.220.51.39',
-        'PORT': '3306',
+        'NAME': os.getenv('DB_NAME', 'default_db_name'),
+        'USER': os.getenv('DB_USER', 'default_user'),
+        'PASSWORD': os.getenv('DB_PASSWORD', 'default_password'),
+        'HOST': os.getenv('DB_HOST', 'localhost'),
+        'PORT': os.getenv('DB_PORT', '3306'),
     }
 }
 
-
-# Password validation
-# https://docs.djangoproject.com/en/5.0/ref/settings/#auth-password-validators
-
+# ✅ Password validation
 AUTH_PASSWORD_VALIDATORS = [
-    {
-        'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator',
-    },
-    {
-        'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator',
-    },
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
-
-# Internationalization
-# https://docs.djangoproject.com/en/5.0/topics/i18n/
-
+# ✅ Localization settings
 LANGUAGE_CODE = 'en-us'
-
 TIME_ZONE = 'UTC'
-
 USE_I18N = True
-
 USE_TZ = True
 
-
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/5.0/howto/static-files/
-
-import os
-
+# ✅ Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
-
-# Configurar STATIC_ROOT para producción
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+STATICFILES_DIRS = [os.path.join(BASE_DIR, 'webapp/static')]
 
-# Directorios adicionales donde buscar archivos estáticos
-STATICFILES_DIRS = [
-    os.path.join(BASE_DIR, 'webapp/static'),
-]
-
-# Default primary key field type
-# https://docs.djangoproject.com/en/5.0/ref/settings/#default-auto-field
-
+# ✅ Default primary key field type
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-#LOGIN_URL = '/login/'
-#LOGIN_REDIRECT_URL = '/'
-
+# ✅ Login and authentication settings
 LOGIN_URL = '/'
-LOGIN_REDIRECT_URL = '/home/'  # O la página a la que quieres redirigir después de login
+LOGIN_REDIRECT_URL = '/home/'
+
+# ✅ CSRF Trusted Origins (For deployment security)
+CSRF_TRUSTED_ORIGINS = os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://127.0.0.1:8000,http://hgndbreports.com,https://hgndbreports.com').split(',')

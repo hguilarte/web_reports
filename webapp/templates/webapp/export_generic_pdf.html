@@ -1,0 +1,58 @@
+{% load custom_filters %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Report - PDF Export</title>
+
+    <!-- 🔹 Basic Styling for PDF Format -->
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: center;
+        }
+        th {
+            background-color: #198754;
+            color: white;
+        }
+        body {
+            font-size: 12px;
+            margin: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 🔹 Report Title -->
+    <h2 style="text-align: center;">Dynamic Report</h2>
+
+    <!-- 🔹 Report Table -->
+    <table>
+        <thead>
+            <tr>
+                <!-- 🔹 Dynamically generate table headers based on field names -->
+                {% for field in field_names %}
+                    <th>{{ field|title }}</th>
+                {% endfor %}
+            </tr>
+        </thead>
+        <tbody>
+            <!-- 🔹 Dynamically generate table rows based on report data -->
+            {% for row in report_data %}
+                <tr>
+                    {% for field in field_names %}
+                        <td>{{ row|dict_get:field }}</td>
+                    {% endfor %}
+                </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+</body>
+</html>
