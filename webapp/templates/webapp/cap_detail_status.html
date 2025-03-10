@@ -1,9 +1,9 @@
 {% extends "webapp/base_report.html" %}
 
-{% block title %}Membership Detail Report{% endblock %}
+{% block title %}Status Detail Report{% endblock %}
 
 {% block report_title %}
-    {% with formatted_title="Membership Detail - "|add:plan|add:" ("|add:capmo|add:")" %}
+    {% with formatted_title="Status Detail - "|add:plan|add:" ("|add:capmo|add:")" %}
         {{ formatted_title|default_if_none:""|capfirst }}
     {% endwith %}
 {% endblock %}
@@ -15,15 +15,15 @@
 
             <!-- ✅ Navigation Buttons -->
             <div class="d-flex align-items-center gap-3">
-                <a href="{% url 'home' %}" class="btn btn-outline-info btn-sm custom-back-btn">
+                <a href="{% url 'home' %}" class="btn btn-outline-info btn-sm custom-back-btn"><!--class="btn btn-outline-primary fw-bold"> -->
                     <i class="bi bi-house-door-fill"></i> Back to Dashboard
                 </a>
-                {% if request.GET.origin == "cap_yearly" %}
-                    <a href="{% url 'cap_yearly' %}" class="btn btn-outline-success btn-sm fw-bold">
-                        ← Back to Yearly Report
-                    </a>
+                {% if request.GET.origin == "status_all_plans" %}
+                    <a href="{% url 'status_all_plans' %}" class="btn btn-outline-success fw-bold">
+                    ← Back to Status Report
+                </a>
                 {% else %}
-                    <a href="{% url 'cap_pivot' %}" class="btn btn-outline-success btn-sm fw-bold">
+                    <a href="{% url 'cap_pivot' %}" class="btn btn-outline-success btn-sm fw-bold"><!-- class="btn btn-outline-success fw-bold"> -->
                         ← Back to Membership Report
                     </a>
                 {% endif %}
@@ -205,4 +205,5 @@
             border-color: #61a5c2 !important; /* Mantiene el borde celeste */
         }
     </style>
+
 {% endblock %}

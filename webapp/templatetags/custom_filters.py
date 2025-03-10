@@ -27,3 +27,10 @@ def calculate_total(row, capmo_labels):
 def get_value(dictionary, key):
     """ Devuelve el valor de un diccionario dado un key o 0 si no existe. """
     return dictionary.get(key, 0)
+
+@register.filter
+def title_case(value):
+    """Convierte cada palabra en mayúscula inicial (Title Case)"""
+    if not isinstance(value, str):
+        return value
+    return ' '.join(word.capitalize() for word in value.split())

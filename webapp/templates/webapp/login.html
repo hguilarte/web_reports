@@ -5,23 +5,22 @@
     <meta charset="UTF-8">
     <title>Login - Health Care Data Reporting</title>
 
-    <!-- 🔹 Bootstrap CSS -->
+    <!-- ✅ Load Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 
-    <!-- 🔹 Custom Styles -->
+    <!-- ✅ Custom Styles for Login Page -->
     <style>
-        /* 🔹 Full Page Background */
+        /* ✅ Full Page Centered Background */
         body {
             background-color: #f8f9fa;
             display: flex;
-            flex-direction: column;
             justify-content: center;
             align-items: center;
             height: 100vh;
             margin: 0;
         }
 
-        /* 🔹 Login Container */
+        /* ✅ Login Container */
         .login-container {
             display: flex;
             width: 50%;
@@ -30,9 +29,10 @@
             border-radius: 10px;
             box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
             overflow: hidden;
+            position: relative;
         }
 
-        /* 🔹 Left Section (Image) */
+        /* ✅ Left Side - Image Section */
         .left-box {
             width: 50%;
             position: relative;
@@ -43,10 +43,9 @@
             width: 100%;
             height: 100%;
             object-fit: cover;
-            position: absolute;
         }
 
-        /* 🔹 Text Overlay on Image */
+        /* ✅ Overlay Text on Image */
         .overlay-text {
             position: absolute;
             bottom: 0;
@@ -59,7 +58,7 @@
             font-weight: bold;
         }
 
-        /* 🔹 Right Section (Login Form) */
+        /* ✅ Right Side - Login Form */
         .right-box {
             width: 50%;
             padding: 30px;
@@ -68,19 +67,19 @@
             justify-content: center;
         }
 
-        /* 🔹 Custom Login Button */
+        /* ✅ Custom Login Button */
         .login-btn {
-            background-color: #61a5c2 !important; /* Light Blue */
+            background-color: #61a5c2 !important;
             border-color: #61a5c2 !important;
             color: white;
         }
 
         .login-btn:hover {
-            background-color: #5093af !important; /* Darker Blue on Hover */
+            background-color: #5093af !important;
             border-color: #5093af !important;
         }
 
-        /* 🔹 Copyright Footer */
+        /* ✅ Copyright Footer */
         .copyright {
             position: absolute;
             bottom: 10px;
@@ -93,44 +92,45 @@
 </head>
 <body>
 
-<!-- 🔹 Login Container -->
+<!-- ✅ Login Page Container -->
 <div class="login-container">
-    <!-- Left Box with Full Image Background -->
+
+    <!-- ✅ Left Section with Image and Overlay Text -->
     <div class="left-box">
         <img src="{% static 'images/new_healthcare_report.png' %}" alt="Healthcare Reports">
         <div class="overlay-text">Health Care Data Reporting</div>
     </div>
 
-    <!-- 🔹 Right Box (Login Form) -->
+    <!-- ✅ Right Section with Login Form -->
     <div class="right-box">
         <h2 class="text-center">Sign In</h2>
-        <form method="post">
+        <form method="post" autocomplete="off">
             {% csrf_token %}
 
-            <!-- 🔹 Username Input -->
+            <!-- ✅ Username Input -->
             <div class="mb-3">
                 <label for="id_username" class="form-label">Username</label>
                 <input type="text" name="username" id="id_username" class="form-control" required>
             </div>
 
-            <!-- 🔹 Password Input -->
+            <!-- ✅ Password Input -->
             <div class="mb-3">
                 <label for="id_password" class="form-label">Password</label>
                 <input type="password" name="password" id="id_password" class="form-control" required>
             </div>
 
-            <!-- 🔹 Login Button -->
+            <!-- ✅ Login Button -->
             <button type="submit" class="btn login-btn w-100">Log In</button>
         </form>
     </div>
 </div>
 
-<!-- 🔹 Copyright Section -->
+<!-- ✅ Copyright Footer -->
 <div class="copyright">
     ©Copyright 2025 - HGN DB Reports - All Rights Reserved
 </div>
 
-<!-- 🔹 Bootstrap JS -->
+<!-- ✅ Load Bootstrap JS -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
 </body>
