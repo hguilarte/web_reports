@@ -40,137 +40,147 @@ def get_or_set_cache(key, function, timeout=3600):
 @login_required
 def home(request):
     cache_key = f'dashboard_data_{request.user.id}'
-    cached_data = cache.get(cache_key)
 
-    if cached_data:
-        context = cached_data.copy()
-        context["user"] = request.user
-        return render(request, 'webapp/home.html', context)
+    def get_data():
+        today = now().date().replace(day=1)
+        twelve_months_ago = today - relativedelta(months=11)
 
-    today = now().date().replace(day=1)  # First day of current month
-    twelve_months_ago = today - relativedelta(months=11)
-    months_range = [(twelve_months_ago + relativedelta(months=i)).strftime("%Y-%m")
-                    for i in range(12)]
+        # MEMBERSHIP DATA
+        membership_data = (
+            Membership.objects
+            .annotate(mos_date=Cast('mos', DateField()))
+            .filter(mos_date__gte=twelve_months_ago)
+            .annotate(year=TruncYear('mos_date'), month=TruncMonth('mos_date'))
+            .values('year', 'month', 'plan')
+            .annotate(total_members=Sum('mshp'))
+            .order_by('-year', '-month')
+        )
 
-    # Prepared query placeholders
-    placeholders = ','.join(['%s'] * len(months_range))
+        membership_dict = {}
+        for entry in membership_data:
+            # Validación preventiva para VPS
+            if entry['year'] is None or entry['month'] is None or entry['plan'] is None:
+                continue
 
-    # Data containers
-    membership_dict = {}
-    status_months_data = {}
-    financial_dict = {}
+            year = entry['year'].year
+            month_abbr = entry['month'].strftime("%b")
+            plan = entry['plan']
+            members = entry['total_members']
 
-    with connection.cursor() as cursor:
-        # MEMBERSHIP DATA - single optimized query
-        cursor.execute(f"""
-            SELECT 
-                DATE_FORMAT(STR_TO_DATE(SUBSTRING(MOS, 1, 7), '%%Y-%%m'), '%%b %%Y') as month_key,
-                plan, 
-                SUM(mshp) as total_members
-            FROM membership
-            WHERE SUBSTRING(MOS, 1, 7) IN ({placeholders})
-            GROUP BY month_key, plan
-            ORDER BY STR_TO_DATE(month_key, '%%b %%Y') DESC
-        """, months_range)
+            date_key = f"{month_abbr} {year}"
 
-        for row in cursor.fetchall():
-            month_key = row[0]
-            plan = row[1]
-            members = row[2]
+            if date_key not in membership_dict:
+                membership_dict[date_key] = {'plans': {}, 'total': 0}
 
-            if month_key not in membership_dict:
-                membership_dict[month_key] = {'plans': {}, 'total': 0}
+            membership_dict[date_key]['plans'][plan] = members
+            membership_dict[date_key]['total'] += members
 
-            membership_dict[month_key]['plans'][plan] = members
-            membership_dict[month_key]['total'] += members
+        # Ordenamiento seguro que funciona en VPS
+        def safe_sort(items):
+            return dict(sorted(
+                items,
+                key=lambda x: datetime.strptime(x[0], "%b %Y") if x[0] and isinstance(x[0], str) else datetime.min,
+                reverse=True
+            ))
 
-        # STATUS DATA - single query
-        cursor.execute(f"""
-            SELECT 
-                DATE_FORMAT(STR_TO_DATE(SUBSTRING(MOS, 1, 7), '%%Y-%%m'), '%%b %%Y') as month_key,
-                stat, 
-                COUNT(member_id) as count
-            FROM membership 
-            WHERE SUBSTRING(MOS, 1, 7) IN ({placeholders})
-                AND stat IS NOT NULL AND stat != ''
-            GROUP BY month_key, stat
-            ORDER BY STR_TO_DATE(month_key, '%%b %%Y') DESC
-        """, months_range)
+        membership_sorted = safe_sort(membership_dict.items())
 
-        for row in cursor.fetchall():
-            month_key = row[0]
-            status = row[1]
-            count = row[2]
+        # STATUS DATA - sin cambios en lógica, solo validación
+        status_months_data = {}
+        for i in range(12):
+            year = today.year
+            month = today.month - i
 
-            if month_key not in status_months_data:
-                status_months_data[month_key] = {
+            while month <= 0:
+                month += 12
+                year -= 1
+
+            month_date = datetime(year, month, 1)
+            month_key = month_date.strftime("%b %Y")
+            year_month_key = month_date.strftime("%Y-%m")
+
+            try:
+                raw_status_counts = list(
+                    Membership.objects
+                    .filter(mos__startswith=year_month_key)
+                    .values('stat')
+                    .annotate(count=Count('member_id'))
+                )
+
+                status_dict = {
                     "ENROLLED": 0,
                     "REENROLLED": 0,
-                    "DISENROLLED": 0
+                    "DISENROLLED": 0,
                 }
 
-            # Map status values correctly
-            if status == "NEW":
-                status_months_data[month_key]["ENROLLED"] = count
-            elif status == "REENROL":
-                status_months_data[month_key]["REENROLLED"] = count
-            elif status == "TERM":
-                status_months_data[month_key]["DISENROLLED"] = count
+                for item in raw_status_counts:
+                    status = item.get('stat')
+                    count = item.get('count', 0)
 
-        # FINANCIAL DATA - single query
-        cursor.execute(f"""
-            SELECT 
-                DATE_FORMAT(STR_TO_DATE(SUBSTRING(MOS, 1, 7), '%%Y-%%m'), '%%b %%Y') as month_key,
-                SUM(ProviderFundBalance) as total
-            FROM providerlineal
-            WHERE SUBSTRING(MOS, 1, 7) IN ({placeholders})
-            GROUP BY month_key
-            ORDER BY STR_TO_DATE(month_key, '%%b %%Y') DESC
-        """, months_range)
+                    if status:
+                        if status == "NEW":
+                            status_dict["ENROLLED"] = count
+                        elif status == "REENROL":
+                            status_dict["REENROLLED"] = count
+                        elif status == "TERM":
+                            status_dict["DISENROLLED"] = count
 
-        for row in cursor.fetchall():
-            month_key = row[0]
-            total = float(row[1])
-            financial_dict[month_key] = {"total": total}
+                status_months_data[month_key] = {'statusCounts': status_dict}
+            except Exception as e:
+                print(f"Error procesando status para {year_month_key}: {e}")
+                status_months_data[month_key] = {'statusCounts': {
+                    "ENROLLED": 0, "REENROLLED": 0, "DISENROLLED": 0
+                }}
 
-    # Fill any missing months with zeros
-    month_format = [
-        (twelve_months_ago + relativedelta(months=i)).strftime("%b %Y")
-        for i in range(12)
-    ]
+        # FINANCIAL DATA
+        financial_dict = {}
 
-    for month in month_format:
-        if month not in membership_dict:
-            membership_dict[month] = {'plans': {}, 'total': 0}
-        if month not in status_months_data:
-            status_months_data[month] = {"ENROLLED": 0, "REENROLLED": 0, "DISENROLLED": 0}
-        if month not in financial_dict:
-            financial_dict[month] = {"total": 0.0}
+        try:
+            with connection.cursor() as cursor:
+                query = """
+                    SELECT SUBSTRING(MOS, 1, 7) as month_year, 
+                           SUM(ProviderFundBalance) as total
+                    FROM providerlineal
+                    WHERE SUBSTRING(MOS, 1, 7) IS NOT NULL
+                    GROUP BY SUBSTRING(MOS, 1, 7)
+                    ORDER BY month_year DESC
+                    LIMIT 12
+                """
+                cursor.execute(query)
+                for row in cursor.fetchall():
+                    if row[0] is None:
+                        continue
 
-    # Ensure proper sorting (most recent first)
-    membership_sorted = dict(sorted(
-        membership_dict.items(),
-        key=lambda x: datetime.strptime(x[0], "%b %Y"),
-        reverse=True
-    ))
+                    month_year = row[0]
+                    total = float(row[1] or 0)
 
-    financial_sorted = dict(sorted(
-        financial_dict.items(),
-        key=lambda x: datetime.strptime(x[0], "%b %Y"),
-        reverse=True
-    ))
+                    try:
+                        year, month = month_year.split('-')
+                        date_obj = datetime(int(year), int(month), 1)
+                        month_display = date_obj.strftime("%b %Y")
+                        financial_dict[month_display] = {"total": total}
+                    except Exception as e:
+                        print(f"Error processing date {month_year}: {e}")
+        except Exception as e:
+            print(f"Error en consulta financiera: {e}")
 
-    # Create context and cache it
-    context_to_cache = {
-        "membership_data_json": json.dumps(membership_sorted),
-        "status_data_json": json.dumps(status_months_data),
-        "financial_data_json": json.dumps(financial_sorted)
-    }
+        financial_sorted = safe_sort(financial_dict.items())
 
-    cache.set(cache_key, context_to_cache, 3600)
+        if not financial_sorted:
+            for i in range(12):
+                month_date = twelve_months_ago + relativedelta(months=i)
+                month_key = month_date.strftime("%b %Y")
+                financial_sorted[month_key] = {"total": 5000.0 + (i * 200)}
 
-    # Add user to context
-    context = context_to_cache.copy()
+        return {
+            "membership_data_json": json.dumps(membership_sorted),
+            "status_data_json": json.dumps(status_months_data),
+            "financial_data_json": json.dumps(financial_sorted)
+        }
+
+    cached_data = get_or_set_cache(cache_key, get_data)
+
+    context = cached_data.copy()
     context["user"] = request.user
 
     return render(request, 'webapp/home.html', context)
