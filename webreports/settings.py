@@ -104,3 +104,15 @@ LOGIN_REDIRECT_URL = '/home/'
 
 # ✅ CSRF Trusted Origins (For deployment security)
 CSRF_TRUSTED_ORIGINS = os.getenv('DJANGO_CSRF_TRUSTED_ORIGINS', 'http://127.0.0.1:8000,http://hgndbreports.com,https://hgndbreports.com').split(',')
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': os.getenv('REDIS_URL', 'redis://127.0.0.1:6379/1'),
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+            'CONNECTION_POOL_KWARGS': {'max_connections': 100}
+        },
+        'KEY_PREFIX': 'hgnexus'
+    }
+}

@@ -1,86 +1,77 @@
+{% extends "webapp/base_report.html" %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Dashboard - Reports</title>
 
-    <!-- ✅ Load Bootstrap and Chart.js -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons/font/bootstrap-icons.css">
-</head>
-<body>
+{% block head_extra %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
 
-    <!-- ✅ Dashboard Header (Logo + User Info) -->
-    <div class="container mt-4">
-        <div class="p-4 rounded text-white d-flex justify-content-between align-items-center"
-             style="background: linear-gradient(135deg, #61a5c2, #87c5dd);">
+{% block title %}Dashboard - Reports{% endblock %}
+{% block report_title %}Healthcare Grid Nexus{% endblock %}
 
-            <!-- ✅ Logo and Home Link -->
-            <div class="d-flex align-items-center gap-3">
-                <a href="{% url 'home' %}">
-                    <img src="{% static 'images/cme_logo.png' %}" alt="CME Logo" style="max-height: 60px;">
-                </a>
-                <h1 class="fw-bold mb-0 fs-2 text-uppercase" style="text-shadow: 3px 3px 5px rgba(0, 0, 0, 0.3);">DASHBOARD</h1>
-            </div>
-
-            <!-- ✅ User Welcome and Logout Dropdown -->
-            <div class="d-flex flex-column align-items-center">
-                <span class="text-white small fw-bold" style="text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);">Welcome, {{ request.user.username }}</span>
-                <div class="dropdown">
-                    <a href="#" class="text-decoration-none" id="logoutDropdown" role="button" data-bs-toggle="dropdown">
-                        <i class="bi bi-box-arrow-right text-white" style="font-size: 1.8rem; text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);"></i>
-                    </a>
-                    <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="logoutDropdown">
-                        <li>
-                            <form method="post" action="{% url 'logout' %}" style="display: inline;">
-                                {% csrf_token %}
-                                <button type="submit" class="dropdown-item text-danger">
-                                    <i class="bi bi-box-arrow-left"></i> Logout
-                                </button>
-                            </form>
-                        </li>
-                    </ul>
-                </div>
-            </div>
+{% block report_content %}
+    <!-- ✅ Breadcrumb Navigation -->
+    <div class="container-fluid px-3 py-0" style="margin-top: -15px;">
+        <div class="py-0 mb-0 d-flex align-items-center" style="height: 24px;">
+        <!-- ✅ Back to Dashboard Button -->
+        <span class="breadcrumb-current">Dashboard</span>
         </div>
     </div>
 
     <!-- ✅ Reports Section -->
-    <div class="container mt-4">
-        <div class="row">
-            <!-- ✅ Membership Reports Section -->
-            <div class="col-md-6">
-                <div class="card shadow-sm border-0">
+    <div class="container bg-white p-3 rounded shadow-sm mt-2">
+        <div class="row g-3">
+            <!-- ✅ Financial Reports Section -->
+            <div class="col-md-4">
+                <div class="card shadow-sm" style="border-radius: 12px;">
                     <div class="card-body text-center">
-                        <h5 class="card-title text-success">Membership Reports</h5>
+                        <h5 class="card-title" style="color: #2c5f7c;">Financial Reports</h5>
+                        <p class="card-text text-muted">Analyze financial data and trends.</p>
+
+                        <!-- ✅ Report Navigation Buttons -->
+                        <div class="d-flex justify-content-center gap-2 mt-3">
+                            <a href="{% url 'revenue_report' %}" class="btn btn-outline-primary custom-btn">Revenue</a>
+                        </div>
+
+                        <!-- ✅ Chart Section -->
+                        <div class="mt-3 p-3 border rounded bg-light" style="min-height: 282px;">
+                            <h6 class="text-muted fst-italic mb-2">Revenue by Month (Last 12 Months)</h6>
+                            <div style="height: 250px; position: relative; width: 100%;">
+                                <canvas id="financialChartCanvas"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ✅ Membership Reports Section -->
+            <div class="col-md-4">
+                <div class="card shadow-sm" style="border-radius: 12px;">
+                    <div class="card-body text-center">
+                        <h5 class="card-title" style="color: #2c5f7c;">Membership Reports</h5>
                         <p class="card-text text-muted">Analyze membership trends.</p>
 
                         <!-- ✅ Report Navigation Buttons -->
                         <div class="d-flex justify-content-center gap-2 mt-3">
-                            <a href="{% url 'cap_pivot' %}" class="btn btn-outline-success btn-lg">Year in Review</a>
-                            <a href="{% url 'cap_yearly' %}" class="btn btn-outline-success btn-lg">Historic by Year</a>
+                            <a href="{% url 'cap_yearly' %}" class="btn btn-outline-primary custom-btn">By Months</a>
                         </div>
 
                         <!-- ✅ Chart Section -->
                         <div class="mt-3 p-3 border rounded bg-light">
-                            <h6 class="text-muted fst-italic mb-2">Membership by Month by Plans</h6>
+                            <h6 class="text-muted fst-italic mb-2">Membership by Centers</h6>
 
                             <!-- ✅ Dropdown for Month Selection -->
-                            <div class="mb-2 d-flex justify-content-center align-items-center gap-2" id="status-dropdown-container">
-                                <label for="monthYearSelect" class="form-label mb-0">Select Month:</label>
-                                <select id="monthYearSelect" class="form-select form-select-sm text-center" style="width: 120px;">
-                                    <option disabled>Loading...</option> <!-- ✅ Placeholder mientras carga -->
+                            <div class="mb-2 text-center">
+                                <select id="monthYearSelect" class="form-select form-select-sm mx-auto" style="width: 120px;">
+                                    <option disabled>Loading...</option>
                                 </select>
                             </div>
 
-                            <div class="d-flex justify-content-center align-items-center position-relative mt-3" style="height: 250px;">
+                            <div style="height: 210px; position: relative; width: 100%;">
                                 <canvas id="membershipChartCanvas"></canvas>
 
                                 <!-- ✅ Centered Membership Count -->
                                 <div class="position-absolute text-center" style="top: 50%; left: 50%; transform: translate(-50%, -50%);">
-                                    <span id="totalMembership" class="fw-bold text-primary" style="font-size: 24px;">0</span>
+                                    <span id="totalMembership" class="fw-bold" style="font-size: 24px; color: #2c5f7c;">0</span>
                                     <div class="text-muted" style="font-size: 14px;">Members</div>
                                 </div>
                             </div>
@@ -90,33 +81,30 @@
             </div>
 
             <!-- ✅ Member Status Reports Section -->
-            <div class="col-md-6">
-                <div class="card shadow-sm border-0">
+            <div class="col-md-4">
+                <div class="card shadow-sm" style="border-radius: 12px;">
                     <div class="card-body text-center">
-                        <h5 class="card-title text-primary">Member Status Reports</h5>
+                        <h5 class="card-title" style="color: #2c5f7c;">Status Reports</h5>
                         <p class="card-text text-muted">Enrollment and disenrollment</p>
 
                         <!-- ✅ Report Navigation Buttons -->
                         <div class="d-flex justify-content-center gap-2 mt-3">
-                            <a href="{% url 'status_all_plans' %}" class="btn btn-outline-primary btn-lg">Year by Status</a>
-                            <a href="{% url 'status_by_plans' %}" class="btn btn-outline-primary btn-lg">Status by Plans</a>
+                            <a href="{% url 'status_all_plans' %}" class="btn btn-outline-primary custom-btn">By Status</a>
                         </div>
 
                         <!-- ✅ Chart Section - Status Bar Chart -->
                         <div class="mt-3 p-3 border rounded bg-light">
-                            <h6 class="text-muted fst-italic mb-2">All Member Status by Month</h6>
+                            <h6 class="text-muted fst-italic mb-2">Status by Month</h6>
 
                             <!-- ✅ Dropdown for Month Selection -->
-                            <div class="mb-2 d-flex justify-content-center align-items-center gap-2">
-                                <label for="statusMonthSelect" class="form-label mb-0">Select Month:</label>
-                                <select id="statusMonthSelect" class="form-select form-select-sm text-center" style="width: 120px;">
+                            <div class="mb-2 text-center">
+                                <select id="statusMonthSelect" class="form-select form-select-sm mx-auto" style="width: 120px;">
                                     <!-- Will be populated by JavaScript -->
                                 </select>
                             </div>
-                            <div class="d-flex justify-content-center">
-                                <div id="status-chart-container" class="mt-3" style="height: 250px; width: 60%;">
-                                    <canvas id="statusChartCanvas"></canvas>
-                                </div>
+
+                            <div style="height: 210px; position: relative; width: 80%; margin: 0 auto;">
+                                <canvas id="statusChartCanvas"></canvas>
                             </div>
                         </div>
                     </div>
@@ -125,17 +113,55 @@
         </div>
     </div>
 
-<!-- ✅ Chart.js Scripts -->
+<style>
+
+    .card {
+        border-radius: 12px; /* 🔹 Mantener bordes redondeados como el header */
+        border: 1px solid #ddd; /* 🔹 Asegurar bordes sutiles */
+    }
+
+    .card-body {
+        padding: 1.5rem;
+    }
+
+    .breadcrumb-current {
+        font-weight: bold;
+        font-size: 0.9rem;
+    }
+
+    .hover-effect:hover {
+        background-color: rgba(44, 95, 124, 0.15) !important;
+        transition: background 0.2s ease-in-out;
+    }
+
+    .custom-btn {
+        border-color: #2c5f7c !important;
+        color: #2c5f7c !important;
+        transition: all 0.3s ease;
+    }
+
+    .custom-btn:hover {
+        background-color: #2c5f7c !important;
+        color: white !important;
+        border-color: #2c5f7c !important;
+    }
+</style>
+
+<!-- Membership Chart Script -->
 <script>
-    // Membership Chart
     document.addEventListener("DOMContentLoaded", function () {
         const monthSelect = document.getElementById("monthYearSelect");
         const ctx = document.getElementById("membershipChartCanvas").getContext("2d");
         let membershipChart = null;
-        let currentSelectedMonth = null;
 
-        // ✅ Datos de MEMBERSHIP pre-cargados desde Django
-        const membershipData = {{ membership_data_json|safe }};
+        // Parse JSON data safely
+        let membershipData = {};
+        try {
+            membershipData = JSON.parse('{{ membership_data_json|escapejs }}');
+            console.log("Loaded membership data:", membershipData);
+        } catch (error) {
+            console.error("Error parsing membership data:", error);
+        }
 
         function loadChartData(selectedMonth = null) {
             if (!membershipData || Object.keys(membershipData).length === 0) {
@@ -143,7 +169,11 @@
                 return;
             }
 
-            const months = Object.keys(membershipData).sort((a, b) => new Date(b) - new Date(a));
+            // Sort months chronologically
+            const months = Object.keys(membershipData).sort((a, b) =>
+                new Date(b.split(" ")[1], ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(b.split(" ")[0])) -
+                new Date(a.split(" ")[1], ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(a.split(" ")[0]))
+            );
 
             if (!selectedMonth || !membershipData[selectedMonth]) {
                 selectedMonth = months[0] || null;
@@ -154,6 +184,7 @@
                 return;
             }
 
+            // Clear and populate month dropdown
             monthSelect.innerHTML = "";
             months.forEach(month => {
                 const option = document.createElement("option");
@@ -165,119 +196,56 @@
                 monthSelect.appendChild(option);
             });
 
-            currentSelectedMonth = selectedMonth;
+            // Get data for the selected month
+            const monthData = membershipData[selectedMonth];
+            if (!monthData || !monthData.plans) {
+                console.error("Invalid data for selected month:", selectedMonth);
+                return;
+            }
 
-            const labels = Object.keys(membershipData[selectedMonth].plans);
-            const members = Object.values(membershipData[selectedMonth].plans);
-            const totalMembers = members.reduce((a, b) => a + b, 0);
+            const labels = Object.keys(monthData.plans);
+            const members = Object.values(monthData.plans);
+            const totalMembers = monthData.total || members.reduce((a, b) => a + b, 0);
 
+            // Update total display
             document.getElementById("totalMembership").textContent = totalMembers.toLocaleString();
 
+            // Generate colors for each plan
+            const colors = generateColors(labels.length);
+
+            // Update or create chart
             if (membershipChart) {
                 membershipChart.data.labels = labels;
                 membershipChart.data.datasets[0].data = members;
+                membershipChart.data.datasets[0].backgroundColor = colors;
                 membershipChart.update();
             } else {
                 membershipChart = new Chart(ctx, {
                     type: "doughnut",
                     data: {
                         labels: labels,
-                        datasets: [{ data: members, backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40"] }]
-                    },
-                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } } }
-                });
-            }
-        }
-
-        loadChartData();
-        monthSelect.addEventListener("change", function () {
-            currentSelectedMonth = this.value;
-            loadChartData(currentSelectedMonth);
-        });
-    });
-</script>
-
-<!-- Status Chart Script -->
-<script>
-    // Status Chart
-    document.addEventListener("DOMContentLoaded", function () {
-        const statusSelect = document.getElementById("statusMonthSelect");
-        const statusCtx = document.getElementById("statusChartCanvas").getContext("2d");
-        let statusChart = null;
-        let currentSelectedStatusMonth = null;
-
-        // ✅ Datos de STATUS pre-cargados desde Django
-        const statusData = {{ status_data_json|safe }};
-
-        function loadStatusChart(selectedMonth = null) {
-            if (!statusData || Object.keys(statusData).length === 0) {
-                console.error("No status data available.");
-                return;
-            }
-
-            const months = Object.keys(statusData).sort((a, b) => new Date(b) - new Date(a));
-
-            if (!selectedMonth || !statusData[selectedMonth]) {
-                selectedMonth = months[0] || null;
-            }
-
-            if (!selectedMonth) {
-                console.error("No valid month found.");
-                return;
-            }
-
-            statusSelect.innerHTML = "";
-            months.forEach(month => {
-                const option = document.createElement("option");
-                option.value = month;
-                option.textContent = month;
-                if (month === selectedMonth) {
-                    option.selected = true;
-                }
-                statusSelect.appendChild(option);
-            });
-
-            currentSelectedStatusMonth = selectedMonth;
-
-            // ✅ Ocultar "TRANSFER OUT" del gráfico
-            const labels = ["NEW", "REENROL", "TERM", "TRANSFER"];
-            const backgroundColors = ["#4CAF50", "#FF9800", "#F44336", "#2196F3"]; // ✅ Colores personalizados
-            const values = labels.map(status => statusData[selectedMonth].statusCounts[status] || 0);
-
-            if (statusChart) {
-                statusChart.data.labels = labels;
-                statusChart.data.datasets[0].data = values;
-                statusChart.update();
-            } else {
-                statusChart = new Chart(statusCtx, {
-                    type: "bar",
-                    data: {
-                        labels: labels,
                         datasets: [{
-                            label: "",
-                            data: values,
-                            backgroundColor: backgroundColors,
-                            borderColor: backgroundColors,
-                            borderWidth: 1,
-                            barPercentage: 0.8, // 🔹 Hace las barras más delgadas
-                            categoryPercentage: 0.9 // 🔹 Ajusta el espacio entre las barras
+                            data: members,
+                            backgroundColor: colors
                         }]
                     },
                     options: {
                         responsive: true,
                         maintainAspectRatio: false,
+                        cutout: '70%',
                         plugins: {
-                            legend: { display: false } // ✅ Oculta la leyenda
-                        },
-                        scales: {
-                            x: {
-                                ticks: { display: true }, // ✅ Muestra las etiquetas del eje X (nombres de los estatus)
-                                grid: { display: false }, // ✅ Elimina las líneas de la cuadrícula en X
-                                title: { display: false } // ✅ Oculta el título del eje X
+                            legend: {
+                                display: false
                             },
-                            y: {
-                                ticks: { display: false }, // ✅ Oculta los números en el eje Y
-                                grid: { display: false } // ✅ Elimina las líneas de la cuadrícula en Y
+                            tooltip: {
+                                callbacks: {
+                                    label: function(context) {
+                                        let label = context.label || '';
+                                        let value = context.raw || 0;
+                                        let percentage = Math.round((value / totalMembers) * 100);
+                                        return `${label}: ${value.toLocaleString()} (${percentage}%)`;
+                                    }
+                                }
                             }
                         }
                     }
@@ -285,16 +253,277 @@
             }
         }
 
-        loadStatusChart();
-        statusSelect.addEventListener("change", function () {
-            currentSelectedStatusMonth = this.value;
-            loadStatusChart(currentSelectedStatusMonth);
+        // Generate colors function
+        function generateColors(count) {
+            const baseColors = [
+                "#4285F4", "#EA4335", "#FBBC05", "#34A853",
+                "#FF6D01", "#46BDC6", "#7B1FA2", "#0F9D58",
+                "#DB4437", "#F4B400", "#0F9D58", "#4285F4"
+            ];
+
+            // Use base colors or generate more if needed
+            if (count <= baseColors.length) {
+                return baseColors.slice(0, count);
+            }
+
+            // Generate more colors if needed
+            const colors = [...baseColors];
+            while (colors.length < count) {
+                const r = Math.floor(Math.random() * 200) + 55;
+                const g = Math.floor(Math.random() * 200) + 55;
+                const b = Math.floor(Math.random() * 200) + 55;
+                colors.push(`rgb(${r}, ${g}, ${b})`);
+            }
+
+            return colors;
+        }
+
+        // Initialize chart
+        loadChartData();
+
+        // Update chart when month selection changes
+        monthSelect.addEventListener("change", function() {
+            loadChartData(this.value);
         });
     });
 </script>
 
-<!-- ✅ Load Bootstrap JS -->
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<!-- Status Chart Script -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const statusSelect = document.getElementById("statusMonthSelect");
+        const statusCtx = document.getElementById("statusChartCanvas").getContext("2d");
+        let statusChart = null;
+        let statusData = {};
 
-</body>
-</html>
+        // 🔹 Cargar datos desde la API en vivo
+        fetch("/api/status-data/")
+            .then(response => response.json())
+            .then(data => {
+                statusData = data;
+
+                // Limpiar y poblar dropdown
+                statusSelect.innerHTML = "";
+                Object.keys(statusData).forEach(month => {
+                    const option = document.createElement("option");
+                    option.value = month;
+                    option.textContent = month;
+                    statusSelect.appendChild(option);
+                });
+
+                // Seleccionar el mes más reciente automáticamente
+                if (statusSelect.options.length > 0) {
+                    statusSelect.value = statusSelect.options[0].value;
+                }
+
+                // Cargar el gráfico después de obtener los datos
+                loadStatusChart(statusSelect.value);
+            })
+            .catch(error => console.error("❌ Error loading status data:", error));
+
+        function loadStatusChart(selectedMonth = null) {
+            if (!statusData || Object.keys(statusData).length === 0) {
+                return;
+            }
+
+            if (!selectedMonth || !statusData[selectedMonth]) {
+                selectedMonth = Object.keys(statusData)[0] || null;
+            }
+
+            if (!selectedMonth) {
+                return;
+            }
+
+            // Obtener valores del mes seleccionado
+            const monthData = statusData[selectedMonth] || {};
+            const labels = ["ENROLLED", "REENROLLED", "DISENROLLED"];
+            const backgroundColors = ["#4CAF50", "#FF9800", "#F44336"];
+            const values = labels.map(status => monthData[status] || 0);
+
+            // Si todos los valores son 0, no renderizar el gráfico
+            if (values.every(v => v === 0)) {
+                if (statusChart) {
+                    statusChart.destroy();
+                    statusChart = null;
+                }
+                return;
+            }
+
+            // Si ya hay un gráfico, destruirlo antes de crear uno nuevo
+            if (statusChart) {
+                statusChart.destroy();
+            }
+
+            // 🔹 Crear el gráfico sin líneas y con barras más unidas
+            statusChart = new Chart(statusCtx, {
+                type: "bar",
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: "Members",
+                        data: values,
+                        backgroundColor: backgroundColors,
+                        borderColor: backgroundColors,
+                        borderWidth: 1,
+                        barPercentage: 0.9,
+                        categoryPercentage: 0.6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let value = context.raw || 0;
+                                    return `${value.toLocaleString()} members`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false }
+                        },
+                        y: {
+                            display: false
+                        }
+                    }
+                }
+            });
+        }
+
+        // Actualizar el gráfico cuando se seleccione un mes nuevo
+        statusSelect.addEventListener("change", function() {
+            loadStatusChart(this.value);
+        });
+    });
+</script>
+
+<!-- Financial Chart Script -->
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const financialCtx = document.getElementById("financialChartCanvas").getContext("2d");
+        let financialChart = null;
+
+        // Parse JSON data from context
+        let financialData = {};
+        try {
+            financialData = JSON.parse('{{ financial_data_json|escapejs }}');
+            console.log("Loaded financial data:", financialData);
+        } catch (error) {
+            console.error("Error parsing financial data:", error);
+        }
+
+        function loadFinancialChart() {
+            if (!financialData || Object.keys(financialData).length === 0) {
+                console.error("No financial data available.");
+                return;
+            }
+
+            // Sort months chronologically
+            const months = Object.keys(financialData).sort((a, b) => {
+                return new Date(a.split(" ")[1], ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(a.split(" ")[0])) -
+                       new Date(b.split(" ")[1], ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"].indexOf(b.split(" ")[0]))
+            });
+
+            // Get data for all months (up to 12)
+            const last12Months = months.slice(-12);
+
+            const balances = last12Months.map(month => {
+                const monthData = financialData[month];
+                return monthData && 'total' in monthData ? monthData.total : 0;
+            });
+
+            // Función para formatear números en K, M, etc.
+            function formatNumber(num) {
+                if (num >= 1000000) {
+                    return '$' + Math.round(num / 1000000) + 'M';
+                }
+                if (num >= 1000) {
+                    return '$' + Math.round(num / 1000) + 'K';
+                }
+                if (num <= -1000000) {
+                    return '-$' + Math.round(Math.abs(num) / 1000000) + 'M';
+                }
+                if (num <= -1000) {
+                    return '-$' + Math.round(Math.abs(num) / 1000) + 'K';
+                }
+                return (num >= 0 ? '$' : '-$') + Math.abs(Math.round(num));
+            }
+
+            // Create chart
+            financialChart = new Chart(financialCtx, {
+                type: "line",
+                data: {
+                    labels: last12Months,
+                    datasets: [{
+                        label: "Revenue",
+                        data: balances,
+                        borderColor: "#2c5f7c",
+                        backgroundColor: "rgba(44, 95, 124, 0.1)",
+                        borderWidth: 2,
+                        pointBackgroundColor: "#2c5f7c",
+                        pointRadius: 3,
+                        pointHoverRadius: 5,
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let value = context.raw || 0;
+                                    return `$${value.toLocaleString("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                maxRotation: 45,
+                                minRotation: 45,
+                                font: {
+                                    size: 9
+                                }
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return formatNumber(value);
+                                },
+                                font: {
+                                    size: 9
+                                }
+                            }
+                        }
+                    },
+                    layout: {
+                        padding: {
+                            left: 5,
+                            right: 5,
+                            top: 15,
+                            bottom: 5
+                        }
+                    }
+                }
+            });
+        }
+
+        // Initialize chart
+        loadFinancialChart();
+    });
+</script>
+
+{% endblock %}

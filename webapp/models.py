@@ -1,18 +1,17 @@
 from django.db import models
 
-class CapHistoricReport(models.Model):
+class Membership(models.Model):
     """
-    ✅ Model representing historic membership report data.
-    This model is mapped to an existing database table (`caphistoric_report_to_use`) and is not managed by Django.
+    ✅ Model representing membership data.
+    This model is mapped to the existing database table ('membership') and is not managed by Django.
     """
     center = models.CharField(max_length=100, db_column="CENTER", db_index=True)
     plan = models.CharField(max_length=100, db_column="PLAN", db_index=True)
     lob = models.CharField(max_length=50, db_column="LOB")
-    mbshp = models.IntegerField(db_column="MBSHP")
-    id = models.CharField(max_length=50, primary_key=True, db_column="ID")
-    hic_num = models.CharField(max_length=50, db_column="HIC_NUM")
-    mcaid_num = models.CharField(max_length=50, db_column="MCAID_NUM")
-    membname = models.CharField(max_length=200, db_column="MEMBNAME")
+    member_id = models.CharField(max_length=50, primary_key=True, db_column="MEMBER_ID")
+    medicare_id = models.CharField(max_length=50, db_column="MEDICARE_ID")
+    medicaid_id = models.CharField(max_length=50, db_column="MEDICAID_ID")
+    member_name = models.CharField(max_length=200, db_column="MEMBER_NAME")
     dob = models.DateField(db_column="DOB", db_index=True)
     age = models.IntegerField(db_column="AGE")
     sex = models.CharField(max_length=1, db_column="SEX")
@@ -22,58 +21,17 @@ class CapHistoricReport(models.Model):
     zip = models.CharField(max_length=10, db_column="ZIP")
     county = models.CharField(max_length=100, db_column="COUNTY")
     phonenumber = models.CharField(max_length=20, db_column="PHONENUMBER")
-    capmo = models.CharField(max_length=20, db_column="CAPMO", db_index=True)
+    mos = models.CharField(max_length=20, db_column="MOS", db_index=True)  # Equivalente a capmo
+    mshp = models.IntegerField(db_column="MSHP")  # Equivalente a mbshp
     pcpname = models.CharField(max_length=255, db_column="PCPNAME")
-    # Añadir el campo stat
+    age_group = models.CharField(max_length=50, db_column="AGE_GROUP")
     stat = models.CharField(max_length=50, db_column="STAT", null=True, blank=True)
 
     class Meta:
-        db_table = 'caphistoric_report_to_use'  # ✅ Ensure the correct table mapping
+        db_table = 'membership'  # ✅ Ensure the correct table mapping
         managed = False  # ✅ Prevent Django from modifying this table
         indexes = [
-            models.Index(fields=['capmo']),
-            models.Index(fields=['dob']),
-            models.Index(fields=['plan']),
-            models.Index(fields=['center']),
-        ]
-
-    def __str__(self):
-        """
-        ✅ String representation of the model instance.
-        """
-        return f"{self.center} - {self.plan} - {self.capmo} - {self.mbshp}"
-
-class CapHistoricReportOneYear(models.Model):
-    """
-    ✅ Model representing one year historic membership report data with status information.
-    This model is mapped to the existing database table (`webreports.caphistoric_report_to_use_1year`) and is not managed by Django.
-    """
-    center = models.CharField(max_length=100, db_column="CENTER", db_index=True)
-    plan = models.CharField(max_length=100, db_column="PLAN", db_index=True)
-    lob = models.CharField(max_length=50, db_column="LOB")
-    mbshp = models.IntegerField(db_column="MBSHP")
-    id = models.CharField(max_length=50, primary_key=True, db_column="ID")
-    hic_num = models.CharField(max_length=50, db_column="HIC_NUM")
-    mcaid_num = models.CharField(max_length=50, db_column="MCAID_NUM")
-    membname = models.CharField(max_length=200, db_column="MEMBNAME")
-    dob = models.DateField(db_column="DOB", db_index=True)
-    age = models.IntegerField(db_column="AGE")
-    sex = models.CharField(max_length=1, db_column="SEX")
-    address = models.CharField(max_length=255, db_column="ADDRESS")
-    city = models.CharField(max_length=100, db_column="CITY")
-    st = models.CharField(max_length=2, db_column="ST")
-    zip = models.CharField(max_length=10, db_column="ZIP")
-    county = models.CharField(max_length=100, db_column="COUNTY")
-    phonenumber = models.CharField(max_length=20, db_column="PHONENUMBER")
-    capmo = models.CharField(max_length=20, db_column="CAPMO", db_index=True)
-    pcpname = models.CharField(max_length=255, db_column="PCPNAME")
-    stat = models.CharField(max_length=50, db_column="STAT", null=True, blank=True)
-
-    class Meta:
-        db_table = 'caphistoric_report_to_use_1year'
-        managed = False
-        indexes = [
-            models.Index(fields=['capmo']),
+            models.Index(fields=['mos']),
             models.Index(fields=['dob']),
             models.Index(fields=['plan']),
             models.Index(fields=['center']),
@@ -81,4 +39,113 @@ class CapHistoricReportOneYear(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.center} - {self.plan} - {self.capmo} - {self.stat}"
+        """
+        ✅ String representation of the model instance.
+        """
+        return f"{self.center} - {self.plan} - {self.mos} - {self.mshp}"
+
+
+# Add to models.py
+
+class ProviderLineal(models.Model):
+    """
+    ✅ Model representing provider financial data.
+    This model is mapped to the existing database table ('providerlineal') and is not managed by Django.
+    """
+    mos = models.CharField(max_length=20, db_column="MOS", db_index=True)
+    medicare_id = models.CharField(max_length=50, db_column="MedicareId")
+    member_full_name = models.CharField(max_length=200, db_column="MemberFullName")
+    provider_fund_balance = models.DecimalField(max_digits=10, decimal_places=2, db_column="ProviderFundBalance")
+
+    class Meta:
+        db_table = 'providerlineal'  # ✅ Ensure the correct table mapping
+        managed = False  # ✅ Prevent Django from modifying this table
+        indexes = [
+            models.Index(fields=['mos']),
+            models.Index(fields=['medicare_id']),
+            models.Index(fields=['member_full_name']),
+        ]
+
+    def __str__(self):
+        """
+        ✅ String representation of the model instance.
+        """
+        return f"{self.member_full_name} - {self.mos} - ${self.provider_fund_balance}"
+
+
+
+
+class ClaimLineal(models.Model):
+    """
+    Model representing claim line details.
+    """
+    UniqueID = models.CharField(max_length=100, primary_key=True)
+    MOS = models.CharField(max_length=20, db_index=True)
+    MOP = models.CharField(max_length=20, null=True, blank=True)
+    ClaimId = models.CharField(max_length=100, null=True, blank=True)
+    ClaimLine = models.CharField(max_length=100, null=True, blank=True)
+    MemQnxtId = models.CharField(max_length=100, null=True, blank=True)
+    MedicareId = models.CharField(max_length=50, db_index=True)
+    MemFullName = models.CharField(max_length=200, null=True, blank=True)
+    PlanId = models.CharField(max_length=100, null=True, blank=True)
+    Location = models.CharField(max_length=100, null=True, blank=True)
+    FacilityCode = models.CharField(max_length=100, null=True, blank=True)
+    FacilityType = models.CharField(max_length=100, null=True, blank=True)
+    BillClassCode = models.CharField(max_length=50, null=True, blank=True)
+    BillClasification = models.CharField(max_length=100, null=True, blank=True)
+    FrequencyCode = models.CharField(max_length=50, null=True, blank=True)
+    Frequency = models.CharField(max_length=100, null=True, blank=True)
+    POS = models.CharField(max_length=50, null=True, blank=True)
+    ClaimStartDate = models.DateField(null=True, blank=True)
+    ClaimEndDate = models.DateField(null=True, blank=True)
+    PaidDate = models.DateField(null=True, blank=True)
+    MOS2 = models.CharField(max_length=20, null=True, blank=True)
+    MOP2 = models.CharField(max_length=20, null=True, blank=True)
+    RevCode = models.CharField(max_length=50, null=True, blank=True)
+    ServCode = models.CharField(max_length=50, null=True, blank=True)
+    ServCodeDesc = models.CharField(max_length=200, null=True, blank=True)
+    ClaimDetailStatus = models.CharField(max_length=50, null=True, blank=True)
+    AmountPaid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    AdminFee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    Provid = models.CharField(max_length=100, null=True, blank=True)
+    ProvFullName = models.CharField(max_length=200, null=True, blank=True)
+    ProvSpecialty = models.CharField(max_length=200, null=True, blank=True)
+    Mony = models.CharField(max_length=100, null=True, blank=True)
+    DrugLabelName = models.CharField(max_length=200, null=True, blank=True)
+    MemDOB = models.DateField(null=True, blank=True)
+    MemAge = models.IntegerField(null=True, blank=True)
+    MemPCPFullName = models.CharField(max_length=200, null=True, blank=True)
+    MemPCPSpecialty = models.CharField(max_length=200, null=True, blank=True)
+    CarrierMemberID = models.CharField(max_length=100, null=True, blank=True)
+    MemEnrollId = models.CharField(max_length=100, null=True, blank=True)
+    PCPAffiliationId = models.CharField(max_length=100, null=True, blank=True)
+    ProvAffiliationId = models.CharField(max_length=100, null=True, blank=True)
+    GroupID = models.CharField(max_length=100, null=True, blank=True)
+    GroupName = models.CharField(max_length=200, null=True, blank=True)
+    Diagnoses = models.TextField(null=True, blank=True)
+    AllowAmt = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    Copay = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    PharmacyName = models.CharField(max_length=200, null=True, blank=True)
+    Quantity = models.IntegerField(null=True, blank=True)
+    NPOS = models.CharField(max_length=50, null=True, blank=True)
+    DecimalQuantity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    DaysSupply = models.IntegerField(null=True, blank=True)
+    NDC = models.CharField(max_length=100, null=True, blank=True)
+    Pharmacy = models.CharField(max_length=200, null=True, blank=True)
+    Claims = models.IntegerField(null=True, blank=True)
+    NewCenturyHealth = models.CharField(max_length=100, null=True, blank=True)
+    County_Simple = models.CharField(max_length=100, db_column="County Simple", null=True, blank=True)
+    Triangle_Cover = models.CharField(max_length=100, db_column="Triangle Cover", null=True, blank=True)
+    DRG = models.CharField(max_length=100, null=True, blank=True)
+    MemPCPID = models.CharField(max_length=100, null=True, blank=True)
+
+    class Meta:
+        db_table = 'claimlineal'
+        managed = False
+        indexes = [
+            models.Index(fields=['MOS']),
+            models.Index(fields=['MedicareId']),
+        ]
+
+    def __str__(self):
+        return f"{self.MedicareId} - {self.MOS} - {self.UniqueID}"
