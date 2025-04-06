@@ -1,0 +1,36 @@
+<!-- ✅ Reusable breadcrumb include -->
+<div class="mb-3" style="margin-top: -15px;">
+    <div class="d-flex align-items-center ps-3 small" style="height: 24px;">
+        {% for item in breadcrumb_items %}
+            {% if not forloop.last %}
+                {% if item.url %}
+                    <a href="{{ item.url }}" class="breadcrumb-link text-decoration-none me-2">
+                        {{ item.label }}
+                    </a>
+                {% else %}
+                    <span class="breadcrumb-link me-2">{{ item.label }}</span>
+                {% endif %}
+                <span class="text-muted me-2">›</span>
+            {% else %}
+                <span class="breadcrumb-current">{{ item.label }}</span>
+            {% endif %}
+        {% endfor %}
+    </div>
+
+    <!-- 🔧 Scoped Breadcrumb Styles -->
+    <style>
+        .breadcrumb-link {
+            font-size: 0.8rem;
+            color: #6c757d;
+        }
+        .breadcrumb-link:hover {
+            color: #495057;
+            text-decoration: underline !important;
+        }
+        .breadcrumb-current {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #343a40;
+        }
+    </style>
+</div>

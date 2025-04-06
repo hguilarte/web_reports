@@ -11,93 +11,62 @@
 {% block report_content %}
 
     <!-- ✅ Breadcrumb Navigation -->
-    <div class="container-fluid px-3 py-0" style="margin-top: -15px;">
-        <div class="py-0 mb-0 d-flex align-items-center" style="height: 24px;">
-            <!-- ✅ Back to Dashboard Button -->
-            <a href="{% url 'home' %}" class="breadcrumb-back">
-                Dashboard
-            </a>
-            <span class="breadcrumb-separator">&gt;</span>
-            {% if request.GET.origin == "cap_yearly" %}
-                <a href="{% url 'cap_yearly' %}" class="breadcrumb-back">
-                    Membership Reports
-                </a>
-            {% else %}
-                <a href="{% url 'cap_pivot' %}" class="breadcrumb-back">
-                    Membership Report
-                </a>
-            {% endif %}
-            <span class="breadcrumb-separator">&gt;</span>
-            <span class="breadcrumb-current">{{ plan }} ({{ capmo }})</span>
-        </div>
-    </div>
+    {% include "webapp/partials/breadcrumb.html" with breadcrumb_items=breadcrumb_data %}
 
-    <!-- ✅ Data Table Container -->
-    <div class="container p-3 rounded shadow-sm mt-2 bg-white">
-        <!-- ✅ Top Controls: Export and Pagination -->
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <!-- Pagination and Row Count -->
-            <div class="d-flex align-items-center gap-3">
-                <!-- Pagination Controls -->
-                <nav aria-label="Table Pagination">
-                    <ul class="pagination mb-0" id="paginationTop"></ul>
-                </nav>
-
-                <div class="d-flex align-items-center">
-                    <span class="fw-bold me-2">Rows per page:</span>
-                    <select id="rowsPerPage" class="form-select form-select-sm w-auto">
-                        <option value="10" selected>10</option>
-                        <option value="25">25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                    </select>
-                </div>
+    <!-- ✅ Contenedor para búsqueda y exportación -->
+    <div class="container mt-2 mb-0 p-0">
+        <div class="d-flex justify-content-between align-items-center px-3">
+            <div class="d-flex align-items-center">
+                <input type="text" id="searchInput" class="form-control form-control-sm" placeholder="Search ..." style="width: 200px;">
             </div>
-
-            <!-- Export Button -->
-            <a href="{% url 'export_detail_to_excel' plan capmo %}?export=true" class="btn btn-outline-primary custom-btn">
+            <a href="{% url 'export_detail_to_excel' plan capmo %}?export=true" class="custom-export-btn" id="exportButton">
                📊 Export to Excel
             </a>
         </div>
+    </div>
 
-        <!-- ✅ Data Table -->
+    <!-- ✅ Tabla de datos -->
+    <div class="container bg-white p-3 rounded shadow-sm mt-1">
+        <!-- ✅ Paginación superior -->
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            {% include "webapp/partials/pagination.html" with top_id="paginationTop" show_rows_selector=True show_counter=True counter_position="right" %}
+        </div>
+
         <div class="table-responsive">
             <table class="table table-striped table-hover text-center align-middle" id="dataTable">
                 <thead class="custom-table-header">
                     <tr>
-                        <th class="text-start px-2">Center</th>
-                        <th class="text-start px-2">Plan</th>
+                        <th class="text-start px-2">CENTER</th>
+                        <th class="text-start px-2">PLAN</th>
                         <th class="px-2">LOB</th>
-                        <th class="px-2">Membership</th>
-                        <th class="px-2">ID</th>
-                        <th class="px-2">Medicare Number</th>
-                        <th class="px-2">Medicaid Number</th>
-                        <th class="text-start px-2">Member Name</th>
+                        <th class="px-2">MEMBER ID</th>
+                        <th class="px-2">MEDICARE ID</th>
+                        <th class="px-2">MEDICAID ID</th>
+                        <th class="text-start px-2">MEMBER NAME</th>
                         <th class="px-2">DOB</th>
-                        <th class="px-2">Age</th>
-                        <th class="px-2">Sex</th>
-                        <th class="text-start px-2">Address</th>
-                        <th class="text-start px-2">City</th>
-                        <th class="text-start px-2">State</th>
+                        <th class="px-2">AGE</th>
+                        <th class="px-2">SEX</th>
+                        <th class="text-start px-2">ADDRESS</th>
+                        <th class="text-start px-2">CITY</th>
+                        <th class="text-start px-2">STATE</th>
                         <th class="px-2">ZIP</th>
-                        <th class="text-start px-2">County</th>
-                        <th class="px-2">Phone Number</th>
-                        <th class="px-2">Month</th>
-                        <th class="text-start px-2">PCP Name</th>
+                        <th class="text-start px-2">COUNTY</th>
+                        <th class="px-2">PHONE NUMBER</th>
+                        <th class="px-2">MOS</th>
+                        <th class="text-start px-2">PCP NAME</th>
                     </tr>
                 </thead>
                 <tbody>
-                {% for row in data %}
+                    {% for row in data %}
                     <tr>
                         <td class="text-start px-2">{{ row.center|default_if_none:"" }}</td>
                         <td>{{ row.plan|default_if_none:"" }}</td>
                         <td>{{ row.lob|default_if_none:"" }}</td>
-                        <td>{{ row.mshp|default_if_none:"" }}</td>
                         <td>{{ row.member_id|default_if_none:"" }}</td>
                         <td>{{ row.medicare_id|default_if_none:"" }}</td>
                         <td>{{ row.medicaid_id|default_if_none:"" }}</td>
                         <td class="text-start px-2">{{ row.member_name|default_if_none:"" }}</td>
-                        <td>{{ row.dob|default_if_none:"" }}</td>
+                        <td>{{ row.dob|date:"Y-m-d"|default_if_none:"" }}</td>
                         <td>{{ row.age|default_if_none:"" }}</td>
                         <td>{{ row.sex|default_if_none:"" }}</td>
                         <td class="text-start px-2">{{ row.address|default_if_none:"" }}</td>
@@ -109,108 +78,52 @@
                         <td>{{ row.mos|default_if_none:"" }}</td>
                         <td class="text-start px-2">{{ row.pcpname|default_if_none:"" }}</td>
                     </tr>
-                {% endfor %}
+                    {% endfor %}
                 </tbody>
             </table>
         </div>
 
-        <!-- ✅ Row Counter and Bottom Pagination -->
+        <!-- ✅ Paginación inferior -->
         <div class="d-flex justify-content-between align-items-center mt-3">
-            <div class="d-flex align-items-center gap-3">
-                <nav aria-label="Table Pagination">
-                    <ul class="pagination mb-0" id="paginationBottom"></ul>
-                </nav>
-                <span id="rowCounter" class="fw-bold"></span>
-            </div>
+            {% include "webapp/partials/pagination.html" with top_id="paginationBottom" show_rows_selector=True show_counter=True counter_position="right" %}
         </div>
     </div>
 
     <script>
         document.addEventListener("DOMContentLoaded", function () {
-            const table = document.getElementById("dataTable");
-            const tbody = table.querySelector("tbody");
-            const rows = Array.from(tbody.querySelectorAll("tr"));
-            const rowsPerPageSelect = document.getElementById("rowsPerPage");
-            const rowCounter = document.getElementById("rowCounter");
-            let rowsPerPage = parseInt(rowsPerPageSelect.value);
-            let currentPage = 1;
-
-            // Obtener conteo total del servidor
-            const totalCount = {{ total_count }};
-
-            function showPage(page) {
-                tbody.innerHTML = "";
-                const start = (page - 1) * rowsPerPage;
-                const end = start + rowsPerPage;
-                rows.slice(start, end).forEach(row => tbody.appendChild(row));
-                updatePagination();
-                rowCounter.textContent = `Showing ${start + 1} to ${Math.min(end, rows.length)} of ${totalCount} rows`;
-            }
-
-            function updatePagination() {
-                function createPageItem(page, text, disabled = false, active = false) {
-                    const li = document.createElement("li");
-                    li.className = `page-item ${disabled ? "disabled" : ""} ${active ? "active" : ""}`;
-                    const a = document.createElement("a");
-                    a.className = "page-link";
-                    a.href = "#";
-                    a.textContent = text;
-                    a.addEventListener("click", function (e) {
-                        e.preventDefault();
-                        if (!disabled) {
-                            currentPage = page;
-                            showPage(currentPage);
-                        }
-                    });
-                    li.appendChild(a);
-                    return li;
-                }
-
-                function renderPagination(containerId) {
-                    const pagination = document.getElementById(containerId);
-                    pagination.innerHTML = "";
-
-                    const totalPages = Math.ceil(rows.length / rowsPerPage);
-                    if (totalPages > 1) {
-                        // First and previous buttons
-                        pagination.appendChild(createPageItem(1, "« First", currentPage === 1));
-                        pagination.appendChild(createPageItem(currentPage - 1, "‹", currentPage === 1));
-
-                        // Page numbers
-                        const startPage = Math.max(1, currentPage - 2);
-                        const endPage = Math.min(totalPages, startPage + 4);
-
-                        for (let i = startPage; i <= endPage; i++) {
-                            pagination.appendChild(createPageItem(i, i.toString(), false, i === currentPage));
-                        }
-
-                        // Next and last buttons
-                        pagination.appendChild(createPageItem(currentPage + 1, "›", currentPage === totalPages));
-                        pagination.appendChild(createPageItem(totalPages, "» Last", currentPage === totalPages));
-
-                        // Page counter
-                        const pageInfo = document.createElement("li");
-                        pageInfo.className = "page-item disabled ms-2";
-                        const pageInfoSpan = document.createElement("span");
-                        pageInfoSpan.className = "page-link bg-light";
-                        pageInfoSpan.textContent = `Page ${currentPage} of ${totalPages}`;
-                        pageInfo.appendChild(pageInfoSpan);
-                        pagination.appendChild(pageInfo);
-                    }
-                }
-
-                renderPagination("paginationTop");
-                renderPagination("paginationBottom");
-            }
-
-            rowsPerPageSelect.addEventListener("change", function () {
-                rowsPerPage = parseInt(this.value);
-                currentPage = 1;
-                showPage(currentPage);
+            window.initPagination({
+                tableId: 'dataTable',
+                topPaginationId: 'paginationTop',
+                bottomPaginationId: 'paginationBottom',
+                rowCounterId: 'rowCounter',
+                rowCounterTopId: 'rowCounterTop',
+                rowsPerPageId: 'rowsPerPage',
+                rowsPerPageBottomId: 'rowsPerPageBottom',
+                searchInputId: 'searchInput',
+                serverSide: false,
+                totalCount: {{ total_count }},
+                initialRowsPerPage: 10
             });
-
-            showPage(currentPage);
         });
+        // ✅ Hook para exportar con filtro aplicado
+    document.getElementById('exportButton').addEventListener('click', function(e) {
+        e.preventDefault();
+
+        // Obtener el valor del campo de búsqueda
+        const searchText = document.getElementById('searchInput').value.trim();
+
+        // Obtener la URL base
+        let exportUrl = this.getAttribute('href');
+
+        // Añadir parámetro de búsqueda si hay texto
+        if (searchText) {
+            exportUrl += (exportUrl.includes('?') ? '&' : '?') + 'search=' + encodeURIComponent(searchText);
+        }
+
+        // Redirigir con el filtro aplicado
+        window.location.href = exportUrl;
+    });
+
     </script>
 
     <style>
@@ -226,13 +139,21 @@
             white-space: nowrap;
         }
 
-        .custom-btn {
-            border-color: #2c5f7c !important;
+        .custom-export-btn {
+            display: inline-block;
+            width: auto;
+            font-weight: 400;
+            font-size: 0.875rem;
+            line-height: 1.5;
             color: #2c5f7c !important;
-            transition: all 0.3s ease;
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #ced4da;
+            border-radius: 0.2rem;
+            text-decoration: none;
+            background-color: #fff;
+            height: 31px;
         }
-
-        .custom-btn:hover {
+        .custom-export-btn:hover {
             background-color: #2c5f7c !important;
             color: white !important;
             border-color: #2c5f7c !important;
@@ -268,4 +189,5 @@
             color: #2c5f7c !important;
         }
     </style>
+
 {% endblock %}

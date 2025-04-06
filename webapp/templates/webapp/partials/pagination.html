@@ -1,0 +1,370 @@
+<!-- ✅ Reusable pagination component -->
+{% if counter_position == "right" %}
+<div class="d-flex justify-content-between w-100 align-items-center">
+    <div class="d-flex align-items-center gap-2">
+        <!-- Pagination Controls -->
+        <nav aria-label="Table Pagination" class="me-1">
+            <ul class="pagination pagination-sm mb-0 d-flex align-items-center" id="{{ top_id|default:'pagination' }}"></ul>
+        </nav>
+
+        <!-- Rows per page selector (always shown) -->
+        <div class="d-flex align-items-center">
+            <span class="fst-italic me-1" style="font-size: 0.85rem;">Rows per page:</span>
+            <select id="{% if top_id == 'paginationBottom' %}rowsPerPageBottom{% else %}rowsPerPage{% endif %}" class="form-select form-select-sm" style="width: auto; min-width: 70px; height: calc(1.5rem + 2px);">
+                <option value="10" selected>10</option>
+                <option value="25">25</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+            </select>
+        </div>
+    </div>
+
+    <!-- Row counter (moved to right) -->
+    <span id="{% if top_id == 'paginationBottom' %}rowCounter{% else %}rowCounterTop{% endif %}" class="fst-italic d-flex align-items-center" style="font-size: 0.85rem; height: calc(1.5rem + 2px);"></span>
+</div>
+{% else %}
+<div class="d-flex align-items-center gap-2">
+    <!-- Pagination Controls -->
+    <nav aria-label="Table Pagination" class="me-1">
+        <ul class="pagination pagination-sm mb-0 d-flex align-items-center" id="{{ top_id|default:'pagination' }}"></ul>
+    </nav>
+
+    <!-- Rows per page selector (optional) -->
+    {% if show_rows_selector %}
+    <div class="d-flex align-items-center">
+        <span class="fst-italic me-1" style="font-size: 0.85rem;">Rows per page:</span>
+        <select id="rowsPerPage" class="form-select form-select-sm" style="width: auto; min-width: 70px; height: calc(1.5rem + 2px);">
+            <option value="10" selected>10</option>
+            <option value="25">25</option>
+            <option value="50">50</option>
+            <option value="100">100</option>
+        </select>
+    </div>
+    {% endif %}
+
+    <!-- Row counter (optional) -->
+    {% if show_counter %}
+    <span id="rowCounter" class="fst-italic d-flex align-items-center" style="font-size: 0.85rem; height: calc(1.5rem + 2px);"></span>
+    {% endif %}
+</div>
+{% endif %}
+
+<script id="paginationScript">
+// This script initializes pagination only if it hasn't been initialized yet
+if (typeof window.paginationInitialized === 'undefined') {
+    window.paginationInitialized = true;
+
+    document.addEventListener("DOMContentLoaded", function () {
+        // Function to create a pagination system
+        window.initPagination = function(options) {
+            const defaults = {
+                tableId: 'dataTable',
+                topPaginationId: 'paginationTop',
+                bottomPaginationId: 'paginationBottom',
+                rowCounterId: 'rowCounter',
+                rowCounterTopId: 'rowCounterTop',
+                rowsPerPageId: 'rowsPerPage',
+                rowsPerPageBottomId: 'rowsPerPageBottom',
+                searchInputId: 'searchInput',
+                serverSide: false,
+                totalCount: null,
+                initialRowsPerPage: 10
+            };
+
+            // Merge defaults with provided options
+            const config = {...defaults, ...options};
+
+            const table = document.getElementById(config.tableId);
+            if (!table) return null; // Exit if table not found
+
+            const tbody = table.querySelector("tbody");
+            const rows = Array.from(tbody.querySelectorAll("tr"));
+            let originalRows = [...rows];
+            let rowsPerPage = config.initialRowsPerPage;
+            let currentPage = 1;
+            let filteredRows = [...rows];
+
+            // Find UI elements
+            const rowsPerPageSelect = document.getElementById(config.rowsPerPageId);
+            const rowsPerPageBottomSelect = document.getElementById(config.rowsPerPageBottomId);
+            const rowCounter = document.getElementById(config.rowCounterId);
+            const rowCounterTop = document.getElementById(config.rowCounterTopId);
+            const searchInput = document.getElementById(config.searchInputId);
+
+            // Initialize rows per page from select if available
+            if (rowsPerPageSelect) {
+                rowsPerPage = parseInt(rowsPerPageSelect.value);
+            }
+
+            // Function to show a specific page
+            function showPage(page) {
+                // Empty the table
+                tbody.innerHTML = "";
+
+                // Calculate slice indexes
+                const start = (page - 1) * rowsPerPage;
+                const end = start + rowsPerPage;
+
+                // Handle server-side vs client-side pagination
+                if (config.serverSide) {
+                    // For server-side, we just use the rows we already have
+                    rows.forEach(row => tbody.appendChild(row.cloneNode(true)));
+                } else {
+                    // For client-side, we slice the filtered rows
+                    filteredRows.slice(start, end).forEach(row => tbody.appendChild(row.cloneNode(true)));
+                }
+
+                // Update pagination UI
+                updatePagination();
+
+                // Update all row counters if they exist
+                const totalItems = config.serverSide ? (config.totalCount || rows.length) : filteredRows.length;
+                const counterText = `Showing ${totalItems > 0 ? Math.min(start + 1, totalItems) : 0} to ${Math.min(end, totalItems)} of ${totalItems} rows`;
+
+                if (rowCounter) rowCounter.textContent = counterText;
+                if (rowCounterTop) rowCounterTop.textContent = counterText;
+
+                // Return current page data for potential further processing
+                return {
+                    page: page,
+                    start: start,
+                    end: end,
+                    rows: filteredRows.slice(start, end)
+                };
+            }
+
+            // Update pagination controls
+            function updatePagination() {
+                function createPageItem(page, text, disabled = false, active = false) {
+                    const li = document.createElement("li");
+                    li.className = `page-item ${disabled ? "disabled" : ""} ${active ? "active" : ""}`;
+
+                    const a = document.createElement("a");
+                    a.className = "page-link";
+                    a.href = "#";
+                    a.textContent = text;
+
+                    a.addEventListener("click", function (e) {
+                        e.preventDefault();
+                        if (!disabled) {
+                            currentPage = page;
+                            showPage(currentPage);
+                            // Trigger custom event for potential listeners
+                            const event = new CustomEvent('pagination:changed', {
+                                detail: { page: currentPage }
+                            });
+                            document.dispatchEvent(event);
+                        }
+                    });
+
+                    li.appendChild(a);
+                    return li;
+                }
+
+                function renderPagination(containerId) {
+                    const pagination = document.getElementById(containerId);
+                    if (!pagination) return;
+
+                    pagination.innerHTML = "";
+
+                    const totalItems = config.serverSide ? (config.totalCount || rows.length) : filteredRows.length;
+                    const totalPages = Math.max(1, Math.ceil(totalItems / rowsPerPage));
+
+                    // First and previous buttons
+                    pagination.appendChild(createPageItem(1, "« First", currentPage === 1));
+                    pagination.appendChild(createPageItem(currentPage - 1, "‹", currentPage === 1));
+
+                    // Page numbers
+                    const startPage = Math.max(1, currentPage - 2);
+                    const endPage = Math.min(totalPages, startPage + 4);
+
+                    for (let i = startPage; i <= endPage; i++) {
+                        pagination.appendChild(createPageItem(i, i.toString(), false, i === currentPage));
+                    }
+
+                    // Next and last buttons
+                    pagination.appendChild(createPageItem(currentPage + 1, "›", currentPage === totalPages));
+                    pagination.appendChild(createPageItem(totalPages, "» Last", currentPage === totalPages));
+
+                    // Page counter
+                    const pageInfo = document.createElement("li");
+                    pageInfo.className = "page-item disabled ms-1";
+                    const pageInfoSpan = document.createElement("span");
+                    pageInfoSpan.className = "page-link bg-light fst-italic";
+                    pageInfoSpan.style.fontSize = "0.8rem";
+                    pageInfoSpan.style.height = "calc(1.5rem + 2px)";
+                    pageInfoSpan.style.display = "flex";
+                    pageInfoSpan.style.alignItems = "center";
+                    pageInfoSpan.textContent = `Page ${currentPage} of ${totalPages}`;
+                    pageInfo.appendChild(pageInfoSpan);
+                    pagination.appendChild(pageInfo);
+                }
+
+                // Render pagination controls at top and bottom if they exist
+                if (config.topPaginationId) renderPagination(config.topPaginationId);
+                if (config.bottomPaginationId) renderPagination(config.bottomPaginationId);
+            }
+
+            // Function to apply search filter
+            function applySearchFilter(searchTerm) {
+                if (!searchTerm || searchTerm.trim() === '') {
+                    filteredRows = [...originalRows];
+                } else {
+                    const term = searchTerm.toLowerCase().trim();
+                    filteredRows = originalRows.filter(row => {
+                        const cells = Array.from(row.querySelectorAll('td'));
+                        return cells.some(cell => {
+                            return cell.textContent.toLowerCase().includes(term);
+                        });
+                    });
+                }
+                currentPage = 1; // Reset to first page after filtering
+                return showPage(currentPage);
+            }
+
+            // Search function handler
+            if (searchInput) {
+                // Initial search if there's a value already
+                if (searchInput.value.trim() !== '') {
+                    applySearchFilter(searchInput.value);
+                }
+
+                // Set up input handler for continuous filtering
+                searchInput.addEventListener("input", function() {
+                    applySearchFilter(this.value);
+                });
+            }
+
+            // Row count select handler - for both top and bottom instances
+            function handleRowsPerPageChange(value) {
+                rowsPerPage = parseInt(value);
+                currentPage = 1; // Reset to first page
+
+                // Sync both top and bottom dropdowns
+                if (rowsPerPageSelect && rowsPerPageSelect.value !== value) {
+                    rowsPerPageSelect.value = value;
+                }
+                if (rowsPerPageBottomSelect && rowsPerPageBottomSelect.value !== value) {
+                    rowsPerPageBottomSelect.value = value;
+                }
+
+                return showPage(currentPage);
+            }
+
+            // Set up rows per page handlers
+            if (rowsPerPageSelect) {
+                rowsPerPageSelect.addEventListener("change", function() {
+                    handleRowsPerPageChange(this.value);
+                });
+            }
+
+            if (rowsPerPageBottomSelect) {
+                rowsPerPageBottomSelect.addEventListener("change", function() {
+                    handleRowsPerPageChange(this.value);
+                });
+            }
+
+            // Initialize first page
+            showPage(currentPage);
+
+            // Public API
+            return {
+                // Basic methods
+                refresh: function() {
+                    return showPage(currentPage);
+                },
+                goToPage: function(page) {
+                    currentPage = Math.max(1, Math.min(page, Math.ceil(filteredRows.length / rowsPerPage)));
+                    return showPage(currentPage);
+                },
+                applySearch: function(term) {
+                    return applySearchFilter(term);
+                },
+
+                // Row manipulation methods
+                updateRows: function(newRows) {
+                    filteredRows = newRows;
+                    originalRows = [...newRows];
+                    currentPage = 1;
+                    return showPage(currentPage);
+                },
+
+                // Getters and setters
+                get currentPage() {
+                    return currentPage;
+                },
+                set currentPage(page) {
+                    currentPage = page;
+                    showPage(currentPage);
+                },
+                get rowsPerPage() {
+                    return rowsPerPage;
+                },
+                set rowsPerPage(count) {
+                    rowsPerPage = count;
+                    if (rowsPerPageSelect) rowsPerPageSelect.value = count.toString();
+                    if (rowsPerPageBottomSelect) rowsPerPageBottomSelect.value = count.toString();
+                    showPage(currentPage);
+                },
+                get filteredRows() {
+                    return filteredRows;
+                },
+                set filteredRows(rows) {
+                    filteredRows = rows;
+                    showPage(Math.min(currentPage, Math.ceil(rows.length / rowsPerPage) || 1));
+                },
+                get originalRows() {
+                    return originalRows;
+                },
+                set originalRows(rows) {
+                    originalRows = rows;
+                }
+            };
+        };
+    });
+}
+</script>
+
+<!-- ✅ Styles for pagination -->
+<style>
+.page-item.active .page-link {
+    background-color: #2c5f7c !important;
+    border-color: #2c5f7c !important;
+    color: white !important; /* Asegura que el número sea visible */
+    font-weight: normal; /* Sin negrita */
+}
+.page-link {
+    color: #2c5f7c !important;
+    font-weight: normal; /* Sin negrita */
+    padding: 0.25rem 0.5rem; /* Padding reducido */
+    height: calc(1.5rem + 2px); /* Altura fija igual al select */
+    display: flex;
+    align-items: center;
+}
+.pagination {
+    margin-bottom: 0 !important;
+}
+.pagination .page-item {
+    margin-right: 2px; /* Reducir espacio entre botones */
+    display: flex;
+    align-items: center;
+}
+/* Botones First y Last más pequeños */
+.pagination .page-item:first-child .page-link,
+.pagination .page-item:last-child .page-link {
+    padding-left: 0.35rem;
+    padding-right: 0.35rem;
+}
+/* Botones de paginación más compactos */
+.form-select-sm {
+    padding-top: 0.2rem;
+    padding-bottom: 0.2rem;
+    height: calc(1.5rem + 2px) !important; /* Forzar la misma altura */
+}
+/* Asegurar que el contador de páginas tenga la misma altura */
+.pagination .page-item .page-link.bg-light {
+    height: calc(1.5rem + 2px);
+    display: flex;
+    align-items: center;
+}
+</style>

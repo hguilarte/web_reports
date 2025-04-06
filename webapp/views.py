@@ -24,6 +24,12 @@ from django.core.cache import cache
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 import openpyxl
 from django.shortcuts import redirect
+from django.urls import reverse
+from django.db.models import Q
+from django.contrib.auth.mixins import LoginRequiredMixin
+from .models import ClaimLineal  # Asegurate que esté importado
+from django.utils.html import escape
+
 
 def get_or_set_cache(key, function, timeout=3600):
     """Función auxiliar para manejar caché de manera más segura"""
@@ -183,6 +189,11 @@ def home(request):
     context = cached_data.copy()
     context["user"] = request.user
 
+    # 👇 Add breadcrumb for reuse in template
+    context["breadcrumb_data"] = [
+        {"label": "Dashboard"}
+    ]
+
     return render(request, 'webapp/home.html', context)
 
 
@@ -232,62 +243,80 @@ def cap_detail_view(request, plan, capmo):
     except ValueError:
         return HttpResponse("Invalid date format", status=400)
 
-    # Construir consulta principal
+    # Base query
     if plan == 'TOTAL':
-        query = Membership.objects.filter(mos__startswith=capmo_date, mshp=1)
+        total_query = Membership.objects.filter(mos__startswith=capmo_date, mshp=1)
     else:
-        query = Membership.objects.filter(plan=plan, mos__startswith=capmo_date, mshp=1)
+        total_query = Membership.objects.filter(plan=plan, mos__startswith=capmo_date, mshp=1)
 
-    # Obtener conteo total una sola vez (optimiza para exportación)
-    cache_key = f'total_count_{plan}_{capmo}'
-    total_count = cache.get(cache_key)
-    if total_count is None:
-        total_count = query.count()
-        cache.set(cache_key, total_count, 3600)
+    # Ordenar por miembro
+    total_query = total_query.order_by('member_id')
+    total_count = total_query.count()
 
     if total_count == 0:
         return HttpResponse(f"No data available for the selected period ({capmo}).", status=404)
 
-    # Para exportación, usar streaming si es posible
-    if request.GET.get('export', False):
-        # Guardar ID de query en caché para exportación posterior
-        export_key = f'export_detail_{plan}_{capmo}'
-        export_params = {'plan': plan, 'capmo': capmo_date}
-        cache.set(export_key, export_params, 3600)
+    data = total_query
+    data_list = list(data.values())
 
-        # Redirigir a la vista normal sin flag de exportación
-        return redirect(f'/cap_detail/{plan}/{capmo}/')
-
-    # Paginación eficiente desde DB
-    page = int(request.GET.get('page', 1))
-    per_page = int(request.GET.get('per_page', 10))
-    paginator = Paginator(query, per_page)
-
-    try:
-        paginated_data = paginator.page(page)
-    except (EmptyPage, PageNotAnInteger):
-        paginated_data = paginator.page(1)
-
-    # Convertir a lista para formato en template
-    data_list = list(paginated_data.object_list.values())
-
-    # Formatear fechas
+    # Serializar fechas
     for item in data_list:
         if 'dob' in item and isinstance(item['dob'], date):
             item['dob'] = item['dob'].strftime('%Y-%m-%d')
         if 'mos' in item and isinstance(item['mos'], date):
             item['mos'] = item['mos'].strftime('%Y-%m-%d')
 
+    # Guardar para exportar
+    if request.GET.get('export', False):
+        request.session['detail_report_data'] = data_list
+
+    request.session['detail_field_names'] = [
+        "center", "plan", "lob", "mshp", "member_id", "medicare_id", "medicaid_id",
+        "member_name", "dob", "age", "sex", "address", "city", "st", "zip",
+        "county", "phonenumber", "mos", "pcpname"
+    ]
+
+    # Breadcrumb reutilizable
+    # Obtener parámetros de la URL
+    origin = request.GET.get('origin', 'cap_pivot')
+    year_param = request.GET.get('year', 'last_12')
+
+    # Determinar etiqueta para el breadcrumb
+    year_label = year_param
+    if year_param == 'last_12':
+        year_label = 'Last 12 Months'
+
+    # Construir el texto del último breadcrumb
+    breadcrumb_label = f"{plan} ({capmo})"
+
+    # Breadcrumb reutilizable
+    breadcrumb_data = [
+        {"label": "Dashboard", "url": reverse("home")},
+    ]
+
+    if origin == "cap_yearly":
+        breadcrumb_data.append({
+            "label": f"Membership Reports - {year_label}",
+            "url": f"{reverse('cap_yearly')}?year={year_param}"
+        })
+    else:
+        breadcrumb_data.append({"label": "Membership Report", "url": reverse("cap_pivot")})
+
+    breadcrumb_data.append({"label": breadcrumb_label})
+
     context = {
-        'data': data_list,
+        'data': data,
         'plan': plan,
         'capmo': capmo,
-        'origin': request.GET.get('origin', 'cap_pivot'),
+        'origin': origin,
+        'year_param': year_param,
         'report_model': 'Membership',
         'total_count': total_count,
-        'page_obj': paginated_data,
+        'breadcrumb_data': breadcrumb_data,  # ✅ para el partial breadcrumb.html
     }
+
     return render(request, 'webapp/cap_detail.html', context)
+
 
 
 #############################################
@@ -341,28 +370,38 @@ def get_membership_data(request):
 
 ##########################################
 # ✅ CapYearlyView Report View
-class CapYearlyView(TemplateView):
+class CapYearlyView(LoginRequiredMixin, TemplateView):
     template_name = "webapp/cap_yearly.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        year_param = self.request.GET.get("year", "last_12")  # Default to last 12 months
+        request = self.request
 
-        # Optimized cache key
+        year_param = request.GET.get("year", "last_12")
+        cache_key = f'cap_yearly_v2_{year_param}'  # define cache key primero
+        cache.delete(cache_key)  # opcional para pruebas, elimina el caché
+
+        selected_year = year_param  # mantener como string
+        selected_year_label = "Last 12 Months" if year_param == "last_12" else str(year_param)
+
+        today = now().date().replace(day=1)
+        twelve_months_ago = today - relativedelta(months=11)
+
+        # Cache key
+        cache.delete(cache_key)
         cache_key = f'cap_yearly_v2_{year_param}'
         cached_data = cache.get(cache_key)
 
         if cached_data:
             context.update(cached_data)
-            self.request.session['yearly_report_data'] = cached_data['pivot_list']
-            self.request.session['yearly_field_names'] = ['plan'] + cached_data['month_range']
+            context["selected_year"] = selected_year  # 👈 fuerza dropdown
+            context["selected_year_label"] = selected_year_label
+            request.session['yearly_report_data'] = cached_data['pivot_list']
+            request.session['yearly_field_names'] = ['plan'] + cached_data['month_range']
             return context
 
-        today = now().date().replace(day=1)
-        twelve_months_ago = today - relativedelta(months=11)
-
+        # Obtener datos según periodo
         if year_param == "last_12":
-            selected_year = "last_12"
             pivot_data = (
                 Membership.objects
                 .annotate(mos_date=Cast('mos', DateField()))
@@ -374,24 +413,22 @@ class CapYearlyView(TemplateView):
             ]
         else:
             try:
-                selected_year = int(year_param)
-                month_range = [
-                    datetime(selected_year, month, 1).strftime("%b-%Y")
-                    for month in range(1, 13)
-                ]
+                year_int = int(year_param)
             except ValueError:
-                selected_year = today.year
-                month_range = [
-                    datetime(today.year, month, 1).strftime("%b-%Y")
-                    for month in range(1, 13)
-                ]
+                year_int = today.year
+
+            month_range = [
+                datetime(year_int, month, 1).strftime("%b-%Y")
+                for month in range(1, 13)
+            ]
 
             pivot_data = (
                 Membership.objects
                 .annotate(mos_date=Cast('mos', DateField()))
-                .filter(mos_date__year=selected_year)
+                .filter(mos_date__year=year_int)
             )
 
+        # Agrupar datos por plan y mes
         pivot_data = (
             pivot_data
             .values('plan', 'mos_date')
@@ -412,21 +449,26 @@ class CapYearlyView(TemplateView):
 
         pivot_list = [
             {"plan": plan, **pivot_dict.get(plan, {month: 0 for month in month_range})}
-            for plan in set(pivot_dict.keys())
+            for plan in pivot_dict
         ]
 
-        # Save data for export
-        self.request.session['yearly_report_data'] = pivot_list
-        self.request.session['yearly_field_names'] = ['plan'] + month_range
-
-        # Get available years (serializable format)
+        # Obtener años disponibles
         available_years_raw = Membership.objects.annotate(
             mos_date=Cast('mos', DateField())
         ).dates('mos_date', 'year', order='DESC')
-
         available_years = [{'year': year.year} for year in available_years_raw]
 
-        # Create cacheable data
+        # Guardar en sesión para exportar
+        request.session['yearly_report_data'] = pivot_list
+        request.session['yearly_field_names'] = ['plan'] + month_range
+
+        # Breadcrumb reutilizable
+        breadcrumb_data = [
+            {"label": "Dashboard", "url": reverse("home")},
+            {"label": f"Membership Reports - {selected_year_label}", "url": ""},
+        ]
+
+        # Construir datos y guardar en caché
         cacheable_data = {
             'pivot_list': pivot_list,
             'capmo_labels': month_range,
@@ -435,12 +477,12 @@ class CapYearlyView(TemplateView):
             'selected_year': selected_year,
             'available_years': available_years,
             'report_model': 'Membership',
+            'breadcrumb_data': breadcrumb_data,
         }
 
-        # Update context and cache
+        cache.set(cache_key, cacheable_data, 3600 * 24)  # 24 horas
         context.update(cacheable_data)
-        cache.set(cache_key, cacheable_data, 3600 * 24)  # Cache for 24 hours
-
+        context["selected_year"] = selected_year  # 👈 Forzar valor actual del dropdown
         return context
 
 
@@ -537,6 +579,15 @@ def status_all_plans_view(request):
     cached_context = cache.get(cache_key)
 
     if cached_context:
+        # Crear datos del breadcrumb y agregarlos al contexto en caché
+        period_text = "Last 12 Months" if cached_context['selected_year'] == "last_12" else cached_context[
+            'selected_year']
+        breadcrumb_data = [
+            {"label": "Dashboard", "url": reverse("home")},
+            {"label": f"Status Reports - {period_text}"}
+        ]
+        cached_context['breadcrumb_data'] = breadcrumb_data
+
         request.session['yearly_report_data'] = cached_context['pivot_list']
         request.session['yearly_field_names'] = ['plan', 'stat'] + cached_context['capmo_labels']
         return render(request, 'webapp/status_all_plans.html', cached_context)
@@ -644,6 +695,13 @@ def status_all_plans_view(request):
         mos_date=Cast('mos', DateField())
     ).dates('mos_date', 'year', order='DESC')
 
+    # Crear datos del breadcrumb
+    period_text = "Last 12 Months" if selected_year == "last_12" else selected_year
+    breadcrumb_data = [
+        {"label": "Dashboard", "url": reverse("home")},
+        {"label": f"Status Reports - {period_text}"}
+    ]
+
     # Prepare the context for the template
     context = {
         'pivot_list': pivot_list,
@@ -652,6 +710,7 @@ def status_all_plans_view(request):
         'selected_year': selected_year,
         'available_years': available_years,
         'report_model': 'Membership',
+        'breadcrumb_data': breadcrumb_data,  # Añadir datos del breadcrumb al contexto
     }
 
     # Cache for 24 hours
@@ -675,68 +734,86 @@ def status_by_plans_view(request):
 
 
 # ✅ Export Detail Report to Excel
+# Función modificada para manejar filtros de status
 def export_detail_to_excel(request, plan, capmo):
     """
-    Exports the detail data to an Excel file with streaming.
+    Exports the detail data to an Excel file, with full-table search support.
     """
     try:
         capmo_date = datetime.strptime(capmo, "%b-%Y").strftime("%Y-%m")
     except ValueError:
         return HttpResponse("Invalid date format", status=400)
 
-    # Construir consulta para exportación
-    if plan == 'TOTAL':
-        query = Membership.objects.filter(mos__startswith=capmo_date, mshp=1)
-    else:
-        query = Membership.objects.filter(plan=plan, mos__startswith=capmo_date, mshp=1)
+    stat = request.resolver_match.kwargs.get('stat')
+    search = request.GET.get('search', '').strip().lower()
 
-    # Verificar si hay datos
-    if not query.exists():
+    # Base queryset
+    if stat:
+        if plan == 'TOTAL':
+            base_query = Membership.objects.filter(mos__startswith=capmo_date, mshp=1, stat=stat)
+        else:
+            base_query = Membership.objects.filter(plan=plan, mos__startswith=capmo_date, mshp=1, stat=stat)
+    else:
+        if plan == 'TOTAL':
+            base_query = Membership.objects.filter(mos__startswith=capmo_date, mshp=1)
+        else:
+            base_query = Membership.objects.filter(plan=plan, mos__startswith=capmo_date, mshp=1)
+
+    # Convert to list of dicts
+    data = list(base_query.values())
+
+    # Fields used in export
+    field_names = [
+        "center", "plan", "lob", "member_id", "medicare_id", "medicaid_id",
+        "member_name", "dob", "age", "sex", "address", "city", "st", "zip",
+        "county", "phone_number", "mos", "pcp_name"
+    ]
+    if stat:
+        field_names.append("stat")
+
+    # Filter by search string across all fields
+    if search:
+        def matches(row):
+            for field in field_names:
+                value = row.get(field)
+                if value is not None and search in str(value).lower():
+                    return True
+            return False
+
+        data = list(filter(matches, data))
+
+    if not data:
         return HttpResponse("No data available to export", status=400)
 
-    # Crear respuesta con streaming
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename="{plan}_{capmo}_detail_report.xlsx"'
+    # Prepare Excel response
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    filename = f"{plan}_{capmo}"
+    if stat:
+        filename = f"{plan}_{stat}_{capmo}"
+    response['Content-Disposition'] = f'attachment; filename="{filename}_detail_report.xlsx"'
 
-    # Definir columnas
-    field_names = [
-        "center", "plan", "lob", "mshp", "member_id", "medicare_id", "medicaid_id",
-        "member_name", "dob", "age", "sex", "address", "city", "st", "zip",
-        "county", "phonenumber", "mos", "pcpname"
-    ]
-
-    # Crear Excel con chunks para reducir uso de memoria
+    # Create workbook
     workbook = openpyxl.Workbook()
     worksheet = workbook.active
     worksheet.title = "Detail Report"
 
-    # Escribir encabezados
+    # Headers
     for col_num, column_title in enumerate(field_names, 1):
         cell = worksheet.cell(row=1, column=col_num)
         cell.value = column_title
         cell.font = openpyxl.styles.Font(bold=True)
 
-    # Escribir datos en chunks
-    chunk_size = 1000
-    row_num = 2
-
-    for i in range(0, query.count(), chunk_size):
-        chunk = query[i:i + chunk_size].values()
-
-        for item in chunk:
-            for col_num, field in enumerate(field_names, 1):
-                cell = worksheet.cell(row=row_num, column=col_num)
-
-                value = item.get(field, '')
-                # Convertir fechas
-                if field == 'dob' and isinstance(value, date):
-                    value = value.strftime('%Y-%m-%d')
-                # Otros campos de fecha
-                if field == 'mos' and isinstance(value, date):
-                    value = value.strftime('%Y-%m-%d')
-
-                cell.value = value
-            row_num += 1
+    # Data rows
+    for row_num, item in enumerate(data, start=2):
+        for col_num, field in enumerate(field_names, 1):
+            value = item.get(field, '')
+            if field == 'dob' and isinstance(value, date):
+                value = value.strftime('%Y-%m-%d')
+            if field == 'mos' and isinstance(value, date):
+                value = value.strftime('%Y-%m-%d')
+            worksheet.cell(row=row_num, column=col_num).value = value
 
     workbook.save(response)
     return response
@@ -796,13 +873,37 @@ def cap_detail_status_view(request, stat, capmo):
         "county", "phonenumber", "mos", "pcpname", "stat"  # Added stat field
     ]
 
+    # Obtener parámetros de la URL
+    origin = request.GET.get('origin', 'status_all_plans')
+    year_param = request.GET.get('year', 'last_12')
+
+    # Determinar etiqueta para el breadcrumb
+    year_label = year_param
+    if year_param == 'last_12':
+        year_label = 'Last 12 Months'
+
+    # Construir el texto del último breadcrumb usando plan o stat
+    breadcrumb_label = f"{plan_filter or stat} ({capmo})"
+
+    # Breadcrumb para la plantilla
+    breadcrumb_data = [
+        {"label": "Dashboard", "url": reverse("home")},
+        {"label": f"Status Reports - {year_label}",
+         "url": f"{reverse('status_all_plans')}?year={year_param}"},
+        {"label": breadcrumb_label}
+    ]
+
+    # Armado del contexto (incluir year_param)
     context = {
         'data': data,
-        'plan': plan_filter or stat,  # If there's a plan, use it; if not, use stat
+        'plan': plan_filter or stat,
         'capmo': capmo,
-        'origin': request.GET.get('origin', 'status_all_plans'),
-        'report_model': 'Membership'
+        'origin': origin,
+        'year_param': year_param,  # Añadir al contexto para uso en template
+        'report_model': 'Membership',
+        'breadcrumb_data': breadcrumb_data,
     }
+
     return render(request, 'webapp/cap_detail_status.html', context)
 
 
@@ -814,19 +915,28 @@ class RevenueReportView(TemplateView):
         context = super().get_context_data(**kwargs)
         year_param = self.request.GET.get("year", "last_12")
 
-        # Clave de caché optimizada
+        # Clave de caché optimizada por usuario
         user_id = getattr(self.request.user, 'id', 'anonymous')
         cache_key = f'revenue_data_{year_param}_{user_id}'
 
         cached_data = cache.get(cache_key)
         if cached_data:
             context.update(cached_data)
+
+            # ✅ Breadcrumb también cuando usamos caché
+            selected_year_display = "Last 12 Months" if str(year_param) == "last_12" else str(year_param)
+            breadcrumb_data = [
+                {"label": "Dashboard", "url": reverse("home")},
+                {"label": f"Financial Reports - {selected_year_display}"}
+            ]
+            context["breadcrumb_data"] = breadcrumb_data
+            context["selected_year"] = str(year_param)
+
             return context
 
         today = now().date().replace(day=1)
         twelve_months_ago = today - relativedelta(months=11)
 
-        # Determinar rango de fechas según periodo seleccionado
         if year_param == "last_12":
             selected_year = "last_12"
             start_dates = [
@@ -847,7 +957,6 @@ class RevenueReportView(TemplateView):
                 month_range = [datetime(today.year, month, 1).strftime("%b-%Y") for month in range(1, 13)]
                 start_dates = [f"{today.year}-{month:02d}" for month in range(1, 13)]
 
-        # Crear mapeo de formatos
         month_format_map = {}
         for month_str in month_range:
             dt = datetime.strptime(month_str, "%b-%Y")
@@ -858,9 +967,7 @@ class RevenueReportView(TemplateView):
         total_by_month = {month: 0 for month in month_range}
         placeholders = ', '.join(['%s'] * len(start_dates))
 
-        # Una sola transacción de BD
         with connection.cursor() as cursor:
-            # Query optimizada con joins y cálculos SQL
             query = f"""
                 SELECT m.MemberFullName, m.MedicareId,
                        SUBSTRING(m.MOS, 1, 7) as month_year,
@@ -879,7 +986,6 @@ class RevenueReportView(TemplateView):
             cursor.execute(query, start_dates + start_dates)
             revenue_data = cursor.fetchall()
 
-            # Obtener años disponibles con una sola consulta
             cursor.execute("""
                 SELECT DISTINCT SUBSTRING(`MOS`, 1, 4) as year 
                 FROM providerlineal 
@@ -887,7 +993,6 @@ class RevenueReportView(TemplateView):
             """)
             available_years = [{'year': row[0]} for row in cursor.fetchall()]
 
-        # Procesar datos para pivot
         for row in revenue_data:
             member_name = row[0]
             medicare_id = row[1]
@@ -909,7 +1014,6 @@ class RevenueReportView(TemplateView):
                 pivot_dict[member_name][f"{capmo_str}_has_claims"] = has_claims
                 total_by_month[capmo_str] += balance
 
-        # Crear lista con formato para la vista
         pivot_list = []
         for member, data in pivot_dict.items():
             formatted_name = ' '.join(word.lower().capitalize() for word in member.split())
@@ -919,52 +1023,72 @@ class RevenueReportView(TemplateView):
                 **{k: v for k, v in data.items() if k != 'medicare_id'}
             })
 
-        # Ordenar alfabéticamente
         pivot_list.sort(key=lambda x: x['member'])
 
-        # Preparar contexto para caché
         cacheable_data = {
             'pivot_list': pivot_list,
             'capmo_labels': month_range,
             'month_range': month_range,
             'total_by_month': total_by_month,
-            'selected_year': selected_year,
+            'selected_year': str(selected_year),
             'available_years': available_years,
             'report_model': 'ProviderLineal',
         }
 
-        # Cache por 1 hora
         cache.set(cache_key, cacheable_data, 3600)
         context.update(cacheable_data)
 
-        return context
+        # ✅ Breadcrumb fuera del caché
+        selected_year_display = "Last 12 Months" if str(selected_year) == "last_12" else str(selected_year)
+        breadcrumb_data = [
+            {"label": "Dashboard", "url": reverse("home")},
+            {"label": f"Financial Reports - {selected_year_display}"}
+        ]
+        context["breadcrumb_data"] = breadcrumb_data
 
+        # ✅ 🔥 GUARDA los datos para el botón de exportación
+        self.request.session['revenue_report_data'] = cacheable_data['pivot_list']
+        self.request.session['revenue_report_field_names'] = cacheable_data['capmo_labels']
+
+        return context
 
 
 # Export revenue report to Excel
 def export_revenue_to_excel(request):
     """
-    Exports revenue report data to an Excel file.
+    Exports revenue report data to an Excel file using data saved in session.
+    Applies optional filtering based on search input.
     """
-    # Get data from session
-    pivot_list = request.session.get('revenue_report_data', [])
-    field_names = request.session.get('revenue_field_names', [])
 
-    if not pivot_list:
+    # Retrieve data and column headers from session
+    pivot_list = request.session.get('revenue_report_data', [])
+    field_names = request.session.get('revenue_report_field_names', [])
+
+    # Apply optional search filter
+    search = request.GET.get("search", "").strip().lower()
+    if search and pivot_list:
+        pivot_list = [
+            row for row in pivot_list
+            if any(search in str(value).lower() for value in row.values())
+        ]
+
+    # Validate we have data and headers
+    if not pivot_list or not field_names:
         return HttpResponse("No data available to export", status=400)
 
-    # Convert to pandas DataFrame
-    df = pd.DataFrame(pivot_list)
+    # Create a pandas DataFrame using the headers (for consistent column order)
+    df = pd.DataFrame(pivot_list, columns=field_names)
 
-    # Create HTTP response with Excel content
+    # Prepare HTTP response for Excel download
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     response['Content-Disposition'] = 'attachment; filename="revenue_report.xlsx"'
 
-    # Write DataFrame to Excel
+    # Write the DataFrame to Excel using openpyxl engine
     with pd.ExcelWriter(response, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name="Revenue Report")
 
     return response
+
 
 
 # API endpoint for financial data
@@ -1010,17 +1134,27 @@ def get_financial_data(request):
 
 
 @login_required
-@login_required
 def claim_detail_view(request, medicare_id, mos):
-    # Clave de caché única
     cache_key = f'claim_detail_v2_{medicare_id}_{mos}'
     cached_data = cache.get(cache_key)
 
+    selected_year = request.GET.get("year", "last_12")
+
+    # ✅ If cached, inject breadcrumb dynamically before returning
     if cached_data:
+        member_name = cached_data.get("member_name", "Unknown")
+        period_label = "Last 12 Months" if selected_year == "last_12" else selected_year
+
+        cached_data["breadcrumb_data"] = [
+            {"label": "Dashboard", "url": reverse("home")},
+            {"label": f"Financial Reports - {period_label}", "url": request.META.get("HTTP_REFERER", reverse("revenue_report"))},
+            {"label": f"Claims for {escape(member_name)} ({mos})"}
+        ]
+
         return render(request, 'webapp/claim_detail.html', cached_data)
 
     try:
-        # Transform month format if needed
+        # 🔄 Normalize month
         if '-' in mos:
             month_name, year = mos.split('-')
             try:
@@ -1031,18 +1165,22 @@ def claim_detail_view(request, medicare_id, mos):
         else:
             mos_date = mos
 
-        # Consulta de datos
-        data = ClaimLineal.objects.filter(
+        export_fields = [
+            'MOS', 'ClaimId', 'ClaimLine', 'MedicareId', 'MemFullName', 'POS',
+            'ClaimStartDate', 'ClaimEndDate', 'PaidDate', 'ClaimDetailStatus',
+            'AmountPaid', 'AdminFee', 'ProvFullName', 'ProvSpecialty', 'MemDOB',
+            'MemAge', 'MemPCPFullName', 'CarrierMemberID', 'MemEnrollId',
+            'Diagnoses', 'AllowAmt', 'PharmacyName', 'NPOS', 'Pharmacy',
+            'Claims', 'County_Simple', 'NPOS_Simple', 'Triangle_Cover'
+        ]
+
+        raw_queryset = ClaimLineal.objects.filter(
             MedicareId=medicare_id,
             MOS__startswith=mos_date
-        ).order_by('ClaimId', 'ClaimLine')
+        ).values(*export_fields).order_by('ClaimId', 'ClaimLine')
 
-        if not data.exists():
-            return HttpResponse(f"No data found for Medicare ID {medicare_id} in {mos}.", status=404)
-
-        # Convertir fechas para serialización segura
         data_list = []
-        for item in data.values():
+        for item in raw_queryset:
             for key, value in item.items():
                 if isinstance(value, date):
                     item[key] = value.strftime('%Y-%m-%d')
@@ -1050,31 +1188,39 @@ def claim_detail_view(request, medicare_id, mos):
                     item[key] = str(value)
             data_list.append(item)
 
-        # Guardar en sesión para exportación
-        request.session['claim_detail_data'] = data_list
-        request.session['claim_field_names'] = [
-            'UniqueID', 'MOS', 'MOP', 'ClaimId', 'ClaimLine', 'MemQnxtId', 'MedicareId',
-            'MemFullName', 'PlanId', 'Location', 'FacilityCode', 'FacilityType',
-            'BillClassCode', 'Frequency', 'POS', 'ClaimStartDate', 'ClaimEndDate',
-            'PaidDate', 'RevCode', 'ServCode', 'ServCodeDesc', 'ClaimDetailStatus',
-            'AmountPaid', 'AdminFee', 'Provid', 'ProvFullName', 'ProvSpecialty'
+        if not data_list:
+            return HttpResponse(f"No data found for Medicare ID {medicare_id} in {mos}.", status=404)
+
+        member_name = data_list[0].get("MemFullName", "Unknown")
+        period_label = "Last 12 Months" if selected_year == "last_12" else selected_year
+
+        # ✅ Full breadcrumb
+        breadcrumb_data = [
+            {"label": "Dashboard", "url": reverse("home")},
+            {"label": f"Financial Reports - {period_label}", "url": request.META.get("HTTP_REFERER", reverse("revenue_report"))},
+            {"label": f"Claims for {escape(member_name)} ({mos})"}
         ]
 
-        # Obtener datos de miembro (convertir fecha si es necesario)
-        member_info = data.first()
-        member_name = member_info.MemFullName if member_info else "Unknown"
-
-        # Crea contexto - no incluimos el QuerySet completo
         context = {
-            'data': data_list,  # Lista ya transformada
+            'data': data_list,
+            'medicare_id': medicare_id,
+            'mos': mos,
+            'member_name': member_name,
+            'report_model': 'ClaimLineal',
+            'breadcrumb_data': breadcrumb_data  # ✅ breadcrumb is now always present
+        }
+
+        request.session['claim_detail_data'] = data_list
+        request.session['claim_field_names'] = export_fields
+
+        # ✅ Cache context WITHOUT breadcrumb to avoid storing outdated links
+        cache.set(cache_key, {
+            'data': data_list,
             'medicare_id': medicare_id,
             'mos': mos,
             'member_name': member_name,
             'report_model': 'ClaimLineal'
-        }
-
-        # Cachear - ahora es seguro para JSON
-        cache.set(cache_key, context, 3600 * 24)
+        }, 3600 * 24)
 
         return render(request, 'webapp/claim_detail.html', context)
 
@@ -1105,4 +1251,114 @@ def export_claims_excel(request, medicare_id, mos):
     with pd.ExcelWriter(response, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name="Claims Detail")
 
+    return response
+
+
+def export_status_detail(request, stat, capmo):
+    """
+    Export detailed status data to Excel, with support for search and filtering
+    """
+    # Attempt to convert 'capmo' into a standard YYYY-MM format
+    try:
+        capmo_date = datetime.strptime(capmo, "%b-%Y").strftime("%Y-%m")
+    except ValueError:
+        try:
+            capmo_date = datetime.strptime(capmo, "%B-%Y").strftime("%Y-%m")
+        except ValueError:
+            try:
+                capmo_date = datetime.strptime(capmo, "%Y-%m").strftime("%Y-%m")
+            except ValueError:
+                return HttpResponse(f"Invalid date format: {capmo}", status=400)
+
+    # Get filters from GET parameters
+    plan_filter = request.GET.get('plan', None)
+    search_text = request.GET.get('search', None)
+
+    # Normalize 'stat' and handle known aliases
+    stat_upper = stat.upper().strip()
+    stat_map = {
+        "ENROLLED": ["ENROLLED", "NEW"],
+        "REENROLLED": ["REENROLLED", "REENROL"],
+        "DISENROLLED": ["DISENROLLED", "TERM", "TERMINATED"]
+    }
+    valid_stats = stat_map.get(stat_upper, [stat])
+
+    # Determine mshp value based on status
+    mshp_value = 1
+    if stat_upper in ["DISENROLLED", "TERM", "TERMINATED"]:
+        mshp_value = 0
+
+    # Build query filters
+    filters = {
+        'stat__in': valid_stats,
+        'mos__startswith': capmo_date,
+        'mshp': mshp_value
+    }
+
+    if plan_filter and plan_filter != 'TOTAL':
+        filters['plan'] = plan_filter
+
+    # Execute query with base filters
+    query = Membership.objects.filter(**filters)
+
+    # Apply search if provided
+    if search_text and search_text.strip():
+        search_query = Q()
+        search_fields = [
+            'center', 'plan', 'lob', 'member_id', 'medicare_id',
+            'medicaid_id', 'member_name', 'address', 'city', 'st',
+            'zip', 'county', 'phonenumber', 'pcpname'
+        ]
+        for field in search_fields:
+            search_query |= Q(**{f"{field}__icontains": search_text})
+        query = query.filter(search_query)
+
+    # If no data found, return early
+    if not query.exists():
+        return HttpResponse(f"No data available for {stat} in {capmo}", status=400)
+
+    # Prepare Excel file response
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    filename = f"Status_{stat}_{capmo}"
+    if plan_filter:
+        filename += f"_{plan_filter}"
+    if search_text:
+        filename += "_filtered"
+    response['Content-Disposition'] = f'attachment; filename="{filename}.xlsx"'
+
+    # Define column fields
+    field_names = [
+        "center", "plan", "lob", "member_id", "medicare_id", "medicaid_id",
+        "member_name", "dob", "age", "sex", "address", "city", "st", "zip",
+        "county", "phone_number", "mos", "pcp_name", "stat"
+    ]
+
+    # Create workbook and worksheet
+    workbook = openpyxl.Workbook()
+    worksheet = workbook.active
+    worksheet.title = f"Status {stat}"
+
+    # Write headers
+    for col_num, column_title in enumerate(field_names, 1):
+        cell = worksheet.cell(row=1, column=col_num)
+        cell.value = column_title
+        cell.font = openpyxl.styles.Font(bold=True)
+
+    # Write data rows
+    row_num = 2
+    for item in query.values():
+        for col_num, field in enumerate(field_names, 1):
+            cell = worksheet.cell(row=row_num, column=col_num)
+            value = item.get(field, '')
+
+            # Format date fields
+            if field == 'dob' and isinstance(value, date):
+                value = value.strftime('%Y-%m-%d')
+            if field == 'mos' and isinstance(value, date):
+                value = value.strftime('%Y-%m-%d')
+
+            cell.value = value
+        row_num += 1
+
+    workbook.save(response)
     return response

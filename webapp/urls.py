@@ -4,7 +4,7 @@ from django.contrib.auth.views import LoginView
 from . import views
 from django.conf import settings
 from django.views.static import serve
-from .views import (CapYearlyView, cap_detail_view, export_to_excel, RevenueReportView,
+from .views import (CapYearlyView, cap_detail_view, export_to_excel, RevenueReportView, export_status_detail,
     get_membership_data, status_pivot_view, status_pivot_dis_view, status_all_plans_view,
     status_by_plans_view, export_detail_to_excel, cap_detail_status_view)
 
@@ -51,4 +51,5 @@ urlpatterns = [
 
     path('export_claims_excel/<str:medicare_id>/<str:mos>/', views.export_claims_excel, name='export_claims_excel'),
 
+    path('export_status_detail/<str:stat>/<str:capmo>/', export_status_detail, name='export_status_detail'),
 ]

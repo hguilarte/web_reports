@@ -45,8 +45,6 @@ class Membership(models.Model):
         return f"{self.center} - {self.plan} - {self.mos} - {self.mshp}"
 
 
-# Add to models.py
-
 class ProviderLineal(models.Model):
     """
     ✅ Model representing provider financial data.
@@ -79,73 +77,44 @@ class ClaimLineal(models.Model):
     """
     Model representing claim line details.
     """
-    UniqueID = models.CharField(max_length=100, primary_key=True)
     MOS = models.CharField(max_length=20, db_index=True)
-    MOP = models.CharField(max_length=20, null=True, blank=True)
     ClaimId = models.CharField(max_length=100, null=True, blank=True)
     ClaimLine = models.CharField(max_length=100, null=True, blank=True)
-    MemQnxtId = models.CharField(max_length=100, null=True, blank=True)
     MedicareId = models.CharField(max_length=50, db_index=True)
     MemFullName = models.CharField(max_length=200, null=True, blank=True)
-    PlanId = models.CharField(max_length=100, null=True, blank=True)
-    Location = models.CharField(max_length=100, null=True, blank=True)
-    FacilityCode = models.CharField(max_length=100, null=True, blank=True)
-    FacilityType = models.CharField(max_length=100, null=True, blank=True)
-    BillClassCode = models.CharField(max_length=50, null=True, blank=True)
-    BillClasification = models.CharField(max_length=100, null=True, blank=True)
-    FrequencyCode = models.CharField(max_length=50, null=True, blank=True)
-    Frequency = models.CharField(max_length=100, null=True, blank=True)
     POS = models.CharField(max_length=50, null=True, blank=True)
     ClaimStartDate = models.DateField(null=True, blank=True)
     ClaimEndDate = models.DateField(null=True, blank=True)
     PaidDate = models.DateField(null=True, blank=True)
-    MOS2 = models.CharField(max_length=20, null=True, blank=True)
-    MOP2 = models.CharField(max_length=20, null=True, blank=True)
-    RevCode = models.CharField(max_length=50, null=True, blank=True)
-    ServCode = models.CharField(max_length=50, null=True, blank=True)
-    ServCodeDesc = models.CharField(max_length=200, null=True, blank=True)
     ClaimDetailStatus = models.CharField(max_length=50, null=True, blank=True)
     AmountPaid = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     AdminFee = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    Provid = models.CharField(max_length=100, null=True, blank=True)
     ProvFullName = models.CharField(max_length=200, null=True, blank=True)
     ProvSpecialty = models.CharField(max_length=200, null=True, blank=True)
-    Mony = models.CharField(max_length=100, null=True, blank=True)
-    DrugLabelName = models.CharField(max_length=200, null=True, blank=True)
     MemDOB = models.DateField(null=True, blank=True)
     MemAge = models.IntegerField(null=True, blank=True)
     MemPCPFullName = models.CharField(max_length=200, null=True, blank=True)
-    MemPCPSpecialty = models.CharField(max_length=200, null=True, blank=True)
     CarrierMemberID = models.CharField(max_length=100, null=True, blank=True)
     MemEnrollId = models.CharField(max_length=100, null=True, blank=True)
-    PCPAffiliationId = models.CharField(max_length=100, null=True, blank=True)
-    ProvAffiliationId = models.CharField(max_length=100, null=True, blank=True)
-    GroupID = models.CharField(max_length=100, null=True, blank=True)
-    GroupName = models.CharField(max_length=200, null=True, blank=True)
     Diagnoses = models.TextField(null=True, blank=True)
     AllowAmt = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    Copay = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
     PharmacyName = models.CharField(max_length=200, null=True, blank=True)
-    Quantity = models.IntegerField(null=True, blank=True)
     NPOS = models.CharField(max_length=50, null=True, blank=True)
-    DecimalQuantity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    DaysSupply = models.IntegerField(null=True, blank=True)
-    NDC = models.CharField(max_length=100, null=True, blank=True)
     Pharmacy = models.CharField(max_length=200, null=True, blank=True)
     Claims = models.IntegerField(null=True, blank=True)
-    NewCenturyHealth = models.CharField(max_length=100, null=True, blank=True)
     County_Simple = models.CharField(max_length=100, db_column="County Simple", null=True, blank=True)
+    NPOS_Simple = models.CharField(max_length=100, db_column="NPOS Simple", null=True, blank=True)
     Triangle_Cover = models.CharField(max_length=100, db_column="Triangle Cover", null=True, blank=True)
-    DRG = models.CharField(max_length=100, null=True, blank=True)
-    MemPCPID = models.CharField(max_length=100, null=True, blank=True)
 
     class Meta:
-        db_table = 'claimlineal'
         managed = False
+        db_table = 'claimlineal'
         indexes = [
             models.Index(fields=['MOS']),
             models.Index(fields=['MedicareId']),
         ]
+        # ❌ NO usar default_auto_field ni primary_key si no hay clave
+        # ❌ NO declarar unique_together si no aplica
 
     def __str__(self):
-        return f"{self.MedicareId} - {self.MOS} - {self.UniqueID}"
+        return f"{self.MedicareId} - {self.MOS}"

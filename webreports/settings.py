@@ -15,7 +15,7 @@ SECRET_KEY = os.getenv('DJANGO_SECRET_KEY', 'your-default-secret-key')
 DEBUG = os.getenv('DJANGO_DEBUG', 'True') == 'True'
 
 # ✅ Hosts allowed to access the project
-ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+ALLOWED_HOSTS = os.getenv('DJANGO_ALLOWED_HOSTS', '127.0.0.1,localhost,hgndbreports.com').split(',')
 
 
 # ✅ Installed applications
